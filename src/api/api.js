@@ -1,15 +1,18 @@
 /**
- * API Service - Comunicação com o backend (sem autenticação)
+ * API Service - Comunicação com o backend
  */
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
- * Requisição genérica
+ * Requisição genérica com injeção automática de token JWT
  */
 async function request(endpoint, options = {}) {
+    const token = localStorage.getItem('token');
+
     const headers = {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options.headers,
     };
 
@@ -19,6 +22,14 @@ async function request(endpoint, options = {}) {
     });
 
     if (!response.ok) {
+        // Se 401, limpa token e redireciona para login
+        if (response.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            throw new Error('Sessão expirada. Faça login novamente.');
+        }
+
         const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
         throw new Error(error.detail || `Erro ${response.status}`);
     }
@@ -329,5 +340,39 @@ export const questionsApi = {
             method: 'PATCH',
             body: JSON.stringify({ observation }),
         });
+    },
+};
+
+// ==========================================
+// Auth API - Autenticação
+// ==========================================
+
+export const authApi = {
+    /**
+     * Faz login e armazena o token JWT
+     */
+    async login(email, password) {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
+            throw new Error(error.detail || 'Falha na autenticação');
+        }
+
+        const data = await response.json();
+        localStorage.setItem('token', data.token);
+        return data;
+    },
+
+    /**
+     * Faz logout removendo o token
+     */
+    logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
     },
 };

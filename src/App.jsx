@@ -1,6 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
+// Auth
+import { AuthProvider } from './contexts/AuthContext';
+import PrivateRoute from './components/PrivateRoute';
+
 // Pages
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import QuestionGenerator from './pages/QuestionGenerator';
 import QuestionViewer from './pages/QuestionViewer';
@@ -12,17 +17,22 @@ import './index.css';
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Public Routes - Acesso direto sem login */}
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/gerar-questoes" element={<QuestionGenerator />} />
-        <Route path="/questoes" element={<QuestionViewer />} />
-        <Route path="/questoes-validadas" element={<ValidatedQuestions />} />
-        <Route path="/usuarios" element={<UserManagement />} />
+      <AuthProvider>
+        <Routes>
+          {/* Rota pública - Login */}
+          <Route path="/login" element={<Login />} />
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Rotas protegidas */}
+          <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/gerar-questoes" element={<PrivateRoute><QuestionGenerator /></PrivateRoute>} />
+          <Route path="/questoes" element={<PrivateRoute><QuestionViewer /></PrivateRoute>} />
+          <Route path="/questoes-validadas" element={<PrivateRoute><ValidatedQuestions /></PrivateRoute>} />
+          <Route path="/usuarios" element={<PrivateRoute><UserManagement /></PrivateRoute>} />
+
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
