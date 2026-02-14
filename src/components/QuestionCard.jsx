@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuestionImage } from '../hooks/useQuestionImage';
 import { useQuestionEdit } from '../hooks/useQuestionEdit';
 import QuestionHeader from './question/QuestionHeader';
 import QuestionImage from './question/QuestionImage';
 import AlternativesList from './question/AlternativesList';
 import QuestionActions from './question/QuestionActions';
+import { questionsApi } from '../api/api';
 
 /**
  * Card de questão modular e expansível
@@ -18,6 +19,9 @@ export default function QuestionCard({
     isGeneratingImage
 }) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [observation, setObservation] = useState(question.observation || '');
+    const [saveStatus, setSaveStatus] = useState(''); // '', 'saving', 'saved'
+    const debounceRef = useRef(null);
 
     const { imageSrc, hasImage } = useQuestionImage(question);
     const {
@@ -30,6 +34,30 @@ export default function QuestionCard({
         handleDistractorChange,
         updateField,
     } = useQuestionEdit(question, onUpdateQuestion);
+
+    // Sync observation when question data changes externally
+    useEffect(() => {
+        setObservation(question.observation || '');
+    }, [question.observation]);
+
+    const handleObservationChange = (e) => {
+        const value = e.target.value;
+        setObservation(value);
+        setSaveStatus('');
+
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(async () => {
+            try {
+                setSaveStatus('saving');
+                await questionsApi.updateObservation(question.id, value || null);
+                setSaveStatus('saved');
+                setTimeout(() => setSaveStatus(''), 2000);
+            } catch (err) {
+                console.error('Erro ao salvar observação:', err);
+                setSaveStatus('');
+            }
+        }, 800);
+    };
 
     const handleGenerateImage = async () => {
         if (onGenerateImage) {
@@ -157,6 +185,26 @@ export default function QuestionCard({
                             <span className="tag tag-skill">{question.skill}</span>
                             <span className="tag tag-proficiency">{question.proficiency_level}</span>
                         </div>
+
+                        {/* Observação */}
+                        <div className="question-observation">
+                            <div className="question-observation-header">
+                                <span className="question-observation-title">📝 Observação</span>
+                                {saveStatus === 'saving' && (
+                                    <span className="observation-status saving">Salvando...</span>
+                                )}
+                                {saveStatus === 'saved' && (
+                                    <span className="observation-status saved">✓ Salvo</span>
+                                )}
+                            </div>
+                            <textarea
+                                className="input observation-textarea"
+                                value={observation}
+                                onChange={handleObservationChange}
+                                rows={2}
+                                placeholder="Adicione uma observação sobre esta questão..."
+                            />
+                        </div>
                     </div>
 
                     <QuestionActions
@@ -176,3 +224,4 @@ export default function QuestionCard({
         </div>
     );
 }
+

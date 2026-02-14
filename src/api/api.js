@@ -320,4 +320,14 @@ export const questionsApi = {
             body: JSON.stringify({ validated }),
         });
     },
+
+    /**
+     * Atualiza a observação de uma questão
+     */
+    async updateObservation(questionId, observation) {
+        return request(`/api/questions/${questionId}/observation`, {
+            method: 'PATCH',
+            body: JSON.stringify({ observation }),
+        });
+    },
 };

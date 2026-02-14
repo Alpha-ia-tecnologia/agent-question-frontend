@@ -927,6 +927,60 @@ textarea.input {
   color: var(--color-text-secondary);
 }
 
+/* Observation field */
+.question-observation {
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.question-observation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.question-observation-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.observation-status {
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: opacity 0.3s ease;
+}
+
+.observation-status.saving {
+  color: var(--color-accent);
+}
+
+.observation-status.saved {
+  color: var(--color-success);
+}
+
+.observation-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 48px;
+  font-size: 0.875rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  transition: border-color 0.2s ease;
+}
+
+.observation-textarea:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
 .question-actions {
   display: flex;
   gap: var(--space-sm);
