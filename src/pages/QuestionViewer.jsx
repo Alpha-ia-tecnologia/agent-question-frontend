@@ -417,7 +417,7 @@ export default function QuestionViewer() {
                                     key={compId}
                                     componentId={compId}
                                     questions={allCompQuestions}
-                                    defaultExpanded={sortedComponents.length <= 2}
+                                    defaultExpanded={false}
                                 >
                                     {sortedGrades.map(grade => {
                                         const skillGroups = gradeGroups[grade];
@@ -428,7 +428,7 @@ export default function QuestionViewer() {
                                                 key={grade}
                                                 grade={grade}
                                                 questions={allGradeQuestions}
-                                                defaultExpanded={sortedGrades.length <= 3}
+                                                defaultExpanded={false}
                                             >
                                                 {sortedSkillNames.map(skillName => {
                                                     const group = skillGroups[skillName];
@@ -438,7 +438,7 @@ export default function QuestionViewer() {
                                                             skillName={skillName}
                                                             skillId={group.skillId}
                                                             questions={group.questions}
-                                                            defaultExpanded={sortedSkillNames.length <= 3}
+                                                            defaultExpanded={false}
                                                         >
                                                             <div className="questions-list">
                                                                 {group.questions.map((question) => (

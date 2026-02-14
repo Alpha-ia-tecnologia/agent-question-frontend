@@ -6,6 +6,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { questionsApi } from '../api/api';
 import { evaluationData } from '../data/evaluationData';
 import ComponentGroup from '../components/ComponentGroup';
+import GradeGroup from '../components/GradeGroup';
 
 export default function ValidatedQuestions() {
     const [questions, setQuestions] = useState([]);
@@ -83,15 +84,17 @@ export default function ValidatedQuestions() {
         const byComponent = {};
         questions.forEach(question => {
             const comp = inferComponent(question);
+            const grade = question.grade || 'Sem série';
             const skill = question.skill || 'Sem categoria';
             if (!byComponent[comp]) byComponent[comp] = {};
-            if (!byComponent[comp][skill]) {
-                byComponent[comp][skill] = {
+            if (!byComponent[comp][grade]) byComponent[comp][grade] = {};
+            if (!byComponent[comp][grade][skill]) {
+                byComponent[comp][grade][skill] = {
                     skillId: question.id_skill,
                     questions: []
                 };
             }
-            byComponent[comp][skill].questions.push(question);
+            byComponent[comp][grade][skill].questions.push(question);
         });
 
         const componentOrder = ['LP', 'MT', 'OTHER'];
@@ -254,37 +257,53 @@ export default function ValidatedQuestions() {
                 ) : (
                     <div className="skill-groups-list">
                         {sortedComponents.map(compId => {
-                            const skillGroups = groupedByComponent[compId];
-                            const sortedSkillNames = Object.keys(skillGroups).sort();
-                            const allCompQuestions = sortedSkillNames.flatMap(s => skillGroups[s].questions);
+                            const gradeGroups = groupedByComponent[compId];
+                            const sortedGrades = Object.keys(gradeGroups);
+                            const allCompQuestions = sortedGrades.flatMap(g =>
+                                Object.values(gradeGroups[g]).flatMap(s => s.questions)
+                            );
                             return (
                                 <ComponentGroup
                                     key={compId}
                                     componentId={compId}
                                     questions={allCompQuestions}
-                                    defaultExpanded={sortedComponents.length <= 2}
+                                    defaultExpanded={false}
                                 >
-                                    {sortedSkillNames.map(skillName => {
-                                        const group = skillGroups[skillName];
+                                    {sortedGrades.map(grade => {
+                                        const skillGroups = gradeGroups[grade];
+                                        const sortedSkillNames = Object.keys(skillGroups).sort();
+                                        const allGradeQuestions = sortedSkillNames.flatMap(s => skillGroups[s].questions);
                                         return (
-                                            <SkillGroup
-                                                key={skillName}
-                                                skillName={skillName}
-                                                skillId={group.skillId}
-                                                questions={group.questions}
-                                                defaultExpanded={sortedSkillNames.length <= 3}
+                                            <GradeGroup
+                                                key={grade}
+                                                grade={grade}
+                                                questions={allGradeQuestions}
+                                                defaultExpanded={false}
                                             >
-                                                <div className="questions-list">
-                                                    {group.questions.map((question) => (
-                                                        <QuestionCard
-                                                            key={question.id}
-                                                            question={question}
-                                                            onToggleValidation={handleToggleValidation}
-                                                            isGeneratingImage={false}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            </SkillGroup>
+                                                {sortedSkillNames.map(skillName => {
+                                                    const group = skillGroups[skillName];
+                                                    return (
+                                                        <SkillGroup
+                                                            key={skillName}
+                                                            skillName={skillName}
+                                                            skillId={group.skillId}
+                                                            questions={group.questions}
+                                                            defaultExpanded={false}
+                                                        >
+                                                            <div className="questions-list">
+                                                                {group.questions.map((question) => (
+                                                                    <QuestionCard
+                                                                        key={question.id}
+                                                                        question={question}
+                                                                        onToggleValidation={handleToggleValidation}
+                                                                        isGeneratingImage={false}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        </SkillGroup>
+                                                    );
+                                                })}
+                                            </GradeGroup>
                                         );
                                     })}
                                 </ComponentGroup>
