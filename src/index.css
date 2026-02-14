@@ -442,6 +442,27 @@ textarea.input {
   padding: var(--space-md);
   border-top: 1px solid var(--color-border);
   background: var(--color-bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.btn-logout {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  cursor: pointer;
+  font-size: 1.25rem;
+  opacity: 0.6;
+  transition: all var(--transition-fast);
+}
+
+.btn-logout:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .user-info {

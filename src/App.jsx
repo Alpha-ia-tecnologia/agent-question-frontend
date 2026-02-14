@@ -27,7 +27,7 @@ function App() {
           <Route path="/gerar-questoes" element={<PrivateRoute><QuestionGenerator /></PrivateRoute>} />
           <Route path="/questoes" element={<PrivateRoute><QuestionViewer /></PrivateRoute>} />
           <Route path="/questoes-validadas" element={<PrivateRoute><ValidatedQuestions /></PrivateRoute>} />
-          <Route path="/usuarios" element={<PrivateRoute><UserManagement /></PrivateRoute>} />
+          <Route path="/usuarios" element={<PrivateRoute adminOnly><UserManagement /></PrivateRoute>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

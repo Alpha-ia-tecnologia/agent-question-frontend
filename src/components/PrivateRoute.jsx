@@ -3,10 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Componente de rota protegida.
- * Redireciona para /login se o usuário não estiver autenticado.
+ * Redireciona para /login se não autenticado.
+ * Redireciona para / se adminOnly e usuário não é admin.
  */
-export default function PrivateRoute({ children }) {
-    const { isAuthenticated, isLoading } = useAuth();
+export default function PrivateRoute({ children, adminOnly = false }) {
+    const { isAuthenticated, isAdmin, isLoading } = useAuth();
     const location = useLocation();
 
     if (isLoading) {
@@ -20,6 +21,10 @@ export default function PrivateRoute({ children }) {
 
     if (!isAuthenticated) {
         return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    if (adminOnly && !isAdmin) {
+        return <Navigate to="/" replace />;
     }
 
     return children;
