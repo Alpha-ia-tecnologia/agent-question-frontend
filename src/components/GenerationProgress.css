@@ -1,0 +1,1164 @@
+/* ─── Generation Progress: Chronological Timeline ─────────── */
+.gen-progress {
+    background: #0f1117;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    overflow: hidden;
+    max-width: 720px;
+    margin: 2rem auto;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    color: #e1e4ea;
+    box-shadow:
+        0 4px 24px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* ─── Header ─────────────────────────────────────────────── */
+.gen-progress__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(14, 165, 233, 0.08));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gen-progress__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.gen-progress__title-icon {
+    font-size: 1.3rem;
+}
+
+.gen-progress__timer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+}
+
+.gen-progress__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.gen-progress__dot.running {
+    background: #22c55e;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+    animation: pulse-dot 1.4s infinite;
+}
+
+.gen-progress__dot.done {
+    background: #6366f1;
+}
+
+@keyframes pulse-dot {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+    }
+}
+
+/* ─── Agent Simulation Visualization ─────────────────────── */
+.agent-sim {
+    position: relative;
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(15, 23, 42, 0.3) 100%);
+    overflow: hidden;
+}
+
+/* ─── Cycle Counter Badge ────────────────────────────────── */
+.agent-sim__cycle-badge {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    padding: 3px 10px;
+    border-radius: 999px;
+    z-index: 2;
+    animation: badge-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes badge-pop {
+    from {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.agent-sim__neural-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.3;
+    background:
+        radial-gradient(circle at 20% 30%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.04) 0%, transparent 60%);
+}
+
+/* ─── Global Pipeline Progress (shadcn/ui translateX pattern) */
+.agent-sim__global-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.agent-sim__global-progress-track {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+    overflow: hidden;
+    position: relative;
+}
+
+.agent-sim__global-progress-fill {
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #22c55e, #4ade80, #6366f1);
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.agent-sim__global-progress-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 50%, rgba(255, 255, 255, 0.25) 75%, transparent 100%);
+    animation: global-shimmer 2s infinite;
+}
+
+@keyframes global-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.agent-sim__global-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #86efac;
+    font-variant-numeric: tabular-nums;
+    min-width: 50px;
+    text-align: right;
+}
+
+/* ─── LangGraph-Inspired Agent Flow ──────────────────────── */
+.agent-sim__graph {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* ─── Central Specialist Avatar ──────────────────────────── */
+.agent-sim__specialist {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px 0 16px;
+    position: relative;
+    z-index: 1;
+}
+
+/* ─── Orbiting Agent Step Dots ───────────────────────────── */
+.agent-sim__orbit {
+    position: absolute;
+    top: 14px;
+    width: 200px;
+    height: 200px;
+    pointer-events: none;
+}
+
+.agent-sim__orbit-dot {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: #475569;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: auto;
+    cursor: default;
+    overflow: hidden;
+}
+
+/* Position each orbit dot around the avatar */
+.agent-sim__orbit-dot:nth-child(1) {
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.agent-sim__orbit-dot:nth-child(2) {
+    top: 20%;
+    right: -8px;
+}
+
+.agent-sim__orbit-dot:nth-child(3) {
+    bottom: 0%;
+    right: 0px;
+}
+
+.agent-sim__orbit-dot:nth-child(4) {
+    bottom: 0%;
+    left: 0px;
+}
+
+.agent-sim__orbit-dot:nth-child(5) {
+    top: 20%;
+    left: -8px;
+}
+
+.agent-sim__orbit-dot.active {
+    color: white;
+    background: var(--dot-color);
+    border-color: var(--dot-color);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--dot-color) 50%, transparent);
+    transform: scale(1.15);
+    animation: orbit-active-pulse 1.5s ease-in-out infinite;
+}
+
+.agent-sim__orbit-dot:nth-child(1).active {
+    transform: translateX(-50%) scale(1.15);
+}
+
+.agent-sim__orbit-dot.done {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.35);
+    font-size: 0.65rem;
+}
+
+@keyframes orbit-active-pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 8px color-mix(in srgb, var(--dot-color) 40%, transparent);
+    }
+
+    50% {
+        box-shadow: 0 0 20px color-mix(in srgb, var(--dot-color) 60%, transparent);
+    }
+}
+
+/* ─── Main Avatar Circle ────────────────────────────────── */
+.agent-sim__avatar-main {
+    position: relative;
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--agent-bg, rgba(99, 102, 241, 0.12));
+    border: 2px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 2;
+}
+
+.agent-sim__avatar-main.active {
+    border-color: var(--agent-color);
+    box-shadow:
+        0 0 30px color-mix(in srgb, var(--agent-color) 25%, transparent),
+        0 0 60px color-mix(in srgb, var(--agent-color) 10%, transparent),
+        inset 0 0 20px color-mix(in srgb, var(--agent-color) 8%, transparent);
+}
+
+.agent-sim__avatar-main.restarting {
+    animation: avatar-spin-reset 1s ease-in-out;
+}
+
+@keyframes avatar-spin-reset {
+    0% {
+        transform: rotate(0);
+        opacity: 1;
+    }
+
+    50% {
+        transform: rotate(180deg);
+        opacity: 0.3;
+    }
+
+    100% {
+        transform: rotate(360deg);
+        opacity: 1;
+    }
+}
+
+/* ─── Avatar Pulse Rings ────────────────────────────────── */
+.agent-sim__avatar-pulse {
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 1.5px solid var(--agent-color);
+    animation: avatar-pulse 2.5s ease-out infinite;
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.agent-sim__avatar-pulse--2 {
+    animation-delay: 1.25s;
+}
+
+@keyframes avatar-pulse {
+    0% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 0;
+        transform: scale(1.4);
+    }
+}
+
+/* ─── Avatar Face (SVG Avatar container) ────────────────── */
+.agent-sim__avatar-face {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    animation: avatar-face-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+}
+
+/* Agent Avatar SVG wrapper */
+.agent-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.agent-avatar svg {
+    width: 100%;
+    height: 100%;
+}
+
+.agent-sim__avatar-main.active .agent-sim__avatar-face {
+    animation: avatar-face-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+        avatar-float 3s ease-in-out infinite 0.5s;
+}
+
+@keyframes avatar-face-in {
+    0% {
+        transform: scale(0) rotate(-30deg);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1) rotate(0);
+        opacity: 1;
+    }
+}
+
+@keyframes avatar-float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+/* ─── Brain Wave Bars (reuse existing animation) ─────────── */
+.agent-sim__brain-wave {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 10px;
+}
+
+.agent-sim__brain-wave span {
+    display: block;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--agent-color, #22c55e);
+    animation: brain-wave 1.2s ease-in-out infinite;
+}
+
+.agent-sim__brain-wave span:nth-child(1) {
+    height: 4px;
+    animation-delay: 0s;
+}
+
+.agent-sim__brain-wave span:nth-child(2) {
+    height: 6px;
+    animation-delay: 0.15s;
+}
+
+.agent-sim__brain-wave span:nth-child(3) {
+    height: 10px;
+    animation-delay: 0.3s;
+}
+
+.agent-sim__brain-wave span:nth-child(4) {
+    height: 6px;
+    animation-delay: 0.45s;
+}
+
+.agent-sim__brain-wave span:nth-child(5) {
+    height: 4px;
+    animation-delay: 0.6s;
+}
+
+@keyframes brain-wave {
+
+    0%,
+    100% {
+        transform: scaleY(0.4);
+        opacity: 0.5;
+    }
+
+    50% {
+        transform: scaleY(1);
+        opacity: 1;
+    }
+}
+
+/* ─── Agent Name & Role ──────────────────────────────────── */
+.agent-sim__agent-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    animation: agent-info-in 0.4s ease-out;
+}
+
+.agent-sim__agent-name {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    transition: color 0.4s ease;
+}
+
+.agent-sim__agent-role {
+    font-size: 0.72rem;
+    color: #64748b;
+}
+
+@keyframes agent-info-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ─── Activity Panel ─────────────────────────────────────── */
+.agent-sim__activity-panel {
+    margin-top: 4px;
+    padding: 0 4px;
+    position: relative;
+    z-index: 1;
+    animation: activity-slide-in 0.35s ease-out;
+}
+
+.agent-sim__activity-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid color-mix(in srgb, var(--agent-color) 15%, transparent);
+    animation: activity-slide-in 0.35s ease-out;
+}
+
+.agent-sim__activity-row--done {
+    background: rgba(34, 197, 94, 0.04);
+    border-color: rgba(34, 197, 94, 0.12);
+}
+
+.agent-sim__activity-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.agent-sim__activity-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+
+.agent-sim__activity-msg {
+    font-size: 0.75rem;
+    color: #cbd5e1;
+    font-weight: 500;
+}
+
+.agent-sim__activity-detail {
+    font-size: 0.62rem;
+    color: #64748b;
+    font-style: italic;
+}
+
+.agent-sim__activity-badge {
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--agent-color);
+    background: color-mix(in srgb, var(--agent-color) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--agent-color) 20%, transparent);
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+@keyframes activity-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ─── Progress Track (shadcn/ui translateX pattern) ──────── */
+.agent-sim__progress-track {
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.agent-sim__progress-indicator {
+    width: 100%;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.agent-sim__progress-indicator::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 24px;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4));
+    animation: shimmer 1.5s infinite;
+}
+
+.agent-sim__progress-indicator.done::after {
+    display: none;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-24px);
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateX(10px);
+        opacity: 0;
+    }
+}
+
+/* ─── Agent Chat Feed ────────────────────────────────────── */
+.agent-sim__chat {
+    margin-top: 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+.agent-sim__chat-title {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #64748b;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.agent-sim__chat-messages {
+    max-height: 140px;
+    overflow-y: auto;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.agent-sim__chat-messages::-webkit-scrollbar {
+    width: 4px;
+}
+
+.agent-sim__chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.agent-sim__chat-messages::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.agent-sim__chat-msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    animation: chat-slide-in 0.3s ease-out;
+}
+
+.agent-sim__chat-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    line-height: 1;
+    flex-shrink: 0;
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.agent-sim__chat-bubble {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 6px 10px;
+    min-width: 0;
+}
+
+.agent-sim__chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.agent-sim__chat-header strong {
+    font-size: 0.62rem;
+}
+
+.agent-sim__chat-time {
+    font-size: 0.52rem;
+    color: #475569;
+    font-variant-numeric: tabular-nums;
+}
+
+.agent-sim__chat-text {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    display: block;
+}
+
+.agent-sim__chat-detail {
+    font-size: 0.55rem;
+    color: #475569;
+    display: block;
+    margin-top: 1px;
+    font-style: italic;
+}
+
+@keyframes chat-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ─── Status Bar ─────────────────────────────────────────── */
+.agent-sim__status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    padding: 8px 14px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    position: relative;
+    z-index: 1;
+}
+
+.agent-sim__status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.72rem;
+    color: #94a3b8;
+}
+
+.agent-sim__status-indicator strong {
+    color: #86efac;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-dot--running {
+    background: #22c55e;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+    animation: pulse-dot 1.4s infinite;
+}
+
+.status-dot--done {
+    background: #6366f1;
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
+}
+
+.status-dot--idle {
+    background: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+    animation: pulse-dot 1.4s infinite;
+}
+
+.agent-sim__agents-count {
+    font-size: 0.68rem;
+    color: #64748b;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ─── Responsive: Agent Sim Mobile ───────────────────────── */
+@media (max-width: 600px) {
+    .agent-sim {
+        padding: 14px;
+    }
+
+    .agent-sim__avatar-main {
+        width: 72px;
+        height: 72px;
+    }
+
+    .agent-sim__avatar-face {
+        font-size: 1.8rem;
+    }
+
+    .agent-sim__orbit {
+        width: 130px;
+        height: 130px;
+    }
+
+    .agent-sim__orbit-dot {
+        width: 22px;
+        height: 22px;
+        font-size: 0.48rem;
+    }
+
+    .agent-sim__agent-name {
+        font-size: 0.85rem;
+    }
+
+    .agent-sim__chat-messages {
+        max-height: 100px;
+    }
+}
+
+/* ─── Phase Pills (top bar) ──────────────────────────────── */
+.gen-progress__phases {
+    display: flex;
+    gap: 6px;
+    padding: 14px 20px;
+    overflow-x: auto;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.gen-progress__phase-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.gen-progress__phase-pill.pending {
+    background: rgba(255, 255, 255, 0.03);
+    color: #64748b;
+    border-color: rgba(255, 255, 255, 0.04);
+}
+
+.gen-progress__phase-pill.active {
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    border-color: rgba(99, 102, 241, 0.3);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.1);
+}
+
+.gen-progress__phase-pill.completed {
+    background: rgba(34, 197, 94, 0.1);
+    color: #86efac;
+    border-color: rgba(34, 197, 94, 0.2);
+}
+
+.pill-icon {
+    font-size: 0.85rem;
+}
+
+.pill-label {
+    font-size: 0.72rem;
+}
+
+.pill-check {
+    color: #22c55e;
+    font-weight: 700;
+}
+
+.pill-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(99, 102, 241, 0.3);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ─── Timeline ───────────────────────────────────────────── */
+.gen-progress__timeline {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 12px 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+}
+
+.gen-progress__timeline::-webkit-scrollbar {
+    width: 5px;
+}
+
+.gen-progress__timeline::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.3);
+    border-radius: 4px;
+}
+
+/* ─── Timeline Entry ─────────────────────────────────────── */
+.tl-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    padding: 4px 20px;
+    position: relative;
+    animation: fadeSlideIn 0.25s ease-out;
+}
+
+@keyframes fadeSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tl-time {
+    width: 52px;
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    color: #475569;
+    font-variant-numeric: tabular-nums;
+    padding-top: 3px;
+    text-align: right;
+    padding-right: 12px;
+}
+
+.tl-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 6px;
+    margin-right: 12px;
+    position: relative;
+}
+
+/* Vertical line connecting dots */
+.tl-entry:not(:last-child) .tl-dot::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 10px;
+    width: 2px;
+    height: calc(100% + 8px);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.phase-dot {
+    background: #6366f1;
+    box-shadow: 0 0 6px rgba(99, 102, 241, 0.4);
+}
+
+.phase-dot.done {
+    background: #22c55e;
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+}
+
+.log-dot {
+    background: #334155;
+}
+
+.metric-dot {
+    background: #f59e0b;
+    box-shadow: 0 0 4px rgba(245, 158, 11, 0.3);
+}
+
+.retry-dot {
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+.finished-dot {
+    background: #22c55e;
+    width: 10px;
+    height: 10px;
+    margin-top: 5px;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+}
+
+.error-dot {
+    background: #ef4444;
+    width: 10px;
+    height: 10px;
+    margin-top: 5px;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+.tl-content {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    min-height: 24px;
+}
+
+.tl-icon {
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+/* ─── Entry type styles ──────────────────────────────────── */
+.tl-phase-start .tl-content {
+    font-weight: 600;
+    color: #c7d2fe;
+}
+
+.tl-badge {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+    font-weight: 600;
+}
+
+.tl-phase-end .tl-content {
+    color: #86efac;
+    font-style: italic;
+    font-size: 0.78rem;
+}
+
+.tl-summary {
+    opacity: 0.9;
+}
+
+.tl-log .tl-content {
+    color: #94a3b8;
+}
+
+.tl-detail {
+    font-size: 0.72rem;
+    color: #64748b;
+    margin-left: 4px;
+}
+
+.tl-metric .tl-content {
+    color: #fbbf24;
+}
+
+.tl-metric-value {
+    font-weight: 700;
+    color: #fde68a;
+}
+
+.tl-retry .tl-content {
+    color: #fca5a5;
+    font-style: italic;
+}
+
+.tl-finished .tl-content {
+    color: #86efac;
+    font-size: 0.9rem;
+}
+
+.tl-error-entry .tl-content {
+    color: #fca5a5;
+}
+
+/* ─── Result Footer ──────────────────────────────────────── */
+.gen-progress__result {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(16, 185, 129, 0.05));
+    border-top: 1px solid rgba(34, 197, 94, 0.15);
+}
+
+.result-icon {
+    font-size: 1.6rem;
+}
+
+.result-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.result-text strong {
+    font-size: 0.95rem;
+    color: #86efac;
+}
+
+.result-text span {
+    font-size: 0.78rem;
+    color: #64748b;
+}
+
+/* ─── Error Footer ───────────────────────────────────────── */
+.gen-progress__error {
+    padding: 14px 20px;
+    background: rgba(239, 68, 68, 0.08);
+    border-top: 1px solid rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ─── Responsive ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .gen-progress {
+        margin: 1rem;
+        border-radius: 12px;
+    }
+
+    .gen-progress__phases {
+        padding: 10px 14px;
+        gap: 4px;
+    }
+
+    .gen-progress__phase-pill {
+        padding: 4px 8px;
+        font-size: 0.65rem;
+    }
+
+    .pill-label {
+        display: none;
+    }
+
+    .tl-time {
+        width: 40px;
+        font-size: 0.6rem;
+    }
+
+    .tl-content {
+        font-size: 0.75rem;
+    }
+}
