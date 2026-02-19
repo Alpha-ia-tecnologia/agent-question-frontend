@@ -162,13 +162,14 @@ export const agentApi = {
     /**
      * Regenera imagem com instruções personalizadas
      */
-    async regenerateImage(question, customInstructions, syncDistractors = true) {
+    async regenerateImage(question, customInstructions, syncDistractors = true, existingImageBase64 = null) {
         return request('/agent/regenerate-image', {
             method: 'POST',
             body: JSON.stringify({
                 question: question,
                 custom_instructions: customInstructions,
                 sync_distractors: syncDistractors,
+                existing_image_base64: existingImageBase64,
             }),
         });
     },
