@@ -196,20 +196,39 @@ export default function QuestionViewer() {
             setQuestions(prev => prev.map(q => {
                 if (q.id !== questionToRegenerate.id) return q;
                 const updated = { ...q, image_base64: response.image_base64 };
-                // Aplica distratores atualizados se disponíveis
+                // Aplica correções da validação multimodal
                 if (response.distractors_updated && response.alternatives) {
                     updated.alternatives = q.alternatives.map(alt => {
                         const updatedAlt = response.alternatives.find(a => a.letter === alt.letter);
                         if (updatedAlt && updatedAlt.modified) {
-                            return { ...alt, distractor: updatedAlt.distractor };
+                            return {
+                                ...alt,
+                                text: updatedAlt.text_modified ? updatedAlt.text : alt.text,
+                                distractor: updatedAlt.distractor || alt.distractor,
+                            };
                         }
                         return alt;
                     });
+                    // Atualiza resposta correta se mudou
+                    if (response.correct_answer) {
+                        updated.correct_answer = response.correct_answer;
+                    }
                 }
                 return updated;
             }));
-            const successMsg = response.distractors_updated
-                ? 'Imagem regenerada e distratores atualizados com sucesso! 🔄'
+            // Mensagem de sucesso detalhada
+            const changes = [];
+            if (response.distractors_updated) {
+                const textChanges = response.alternatives?.filter(a => a.text_modified)?.length || 0;
+                const distChanges = response.alternatives?.filter(a => a.modified && !a.text_modified)?.length || 0;
+                if (textChanges > 0) changes.push(`${textChanges} alternativa(s) corrigida(s)`);
+                if (distChanges > 0) changes.push(`${distChanges} distrator(es) atualizado(s)`);
+                if (response.correct_answer && response.correct_answer !== questionToRegenerate.correct_answer) {
+                    changes.push(`resposta correta alterada para ${response.correct_answer}`);
+                }
+            }
+            const successMsg = changes.length > 0
+                ? `Imagem regenerada e validada! 🔄 ${changes.join(', ')}`
                 : 'Imagem regenerada com sucesso!';
             setSuccess(successMsg);
             setQuestionToRegenerate(null);
