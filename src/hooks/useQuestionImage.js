@@ -1,10 +1,8 @@
 import { useMemo } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
 /**
  * Hook para gerenciar a lógica de fonte de imagem da questão
- * Prioridade: image_base64 > imageFromServer > image_url
+ * Prioridade: image_base64 > imageFromServer
  */
 export function useQuestionImage(question) {
     const imageSrc = useMemo(() => {
@@ -14,12 +12,8 @@ export function useQuestionImage(question) {
         if (question.imageFromServer) {
             return question.imageFromServer;
         }
-        if (question.image_url && question.image_url.startsWith('http')) {
-            // Only use absolute external URLs; relative server paths are often broken
-            return question.image_url;
-        }
         return null;
-    }, [question.image_base64, question.imageFromServer, question.image_url]);
+    }, [question.image_base64, question.imageFromServer]);
 
     const hasImage = Boolean(imageSrc);
 
