@@ -36,19 +36,7 @@ export default function ValidatedQuestions() {
             else if (validationFilter === 'pending') params.validated = false;
 
             const data = await questionsApi.list(params);
-
-            // Para questões com image_url, monta a URL completa
-            const questionsWithImages = (data.questions || []).map(q => {
-                if (q.image_url && !q.image_base64) {
-                    const imageUrl = q.image_url.startsWith('http')
-                        ? q.image_url
-                        : `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}${q.image_url}`;
-                    return { ...q, imageFromServer: imageUrl };
-                }
-                return q;
-            });
-
-            setQuestions(questionsWithImages);
+            setQuestions(data.questions || []);
         } catch (err) {
             setError('Erro ao carregar questões: ' + err.message);
         } finally {
