@@ -13,7 +13,7 @@ export default function QuestionViewer() {
     const navigate = useNavigate();
 
     const [questions, setQuestions] = useState([]);
-    const [selectedQuestions, setSelectedQuestions] = useState([]);
+
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const [exportFileName, setExportFileName] = useState('');
@@ -28,6 +28,7 @@ export default function QuestionViewer() {
     const [showRegenerateModal, setShowRegenerateModal] = useState(false);
     const [regenerateInstructions, setRegenerateInstructions] = useState('');
     const [questionToRegenerate, setQuestionToRegenerate] = useState(null);
+    const [syncDistractors, setSyncDistractors] = useState(true);
 
     const [isLoading, setIsLoading] = useState(true);
 
@@ -138,20 +139,7 @@ export default function QuestionViewer() {
         return { total, validated, pending: total - validated };
     }, [questions]);
 
-    const handleClearAll = async () => {
-        if (!window.confirm('Tem certeza que deseja limpar TODAS as questões?')) return;
-        try {
-            for (const q of questions) {
-                await questionsApi.delete(q.id);
-            }
-            setQuestions([]);
-            setSelectedQuestions([]);
-            setSuccess('Todas as questões foram removidas!');
-            setTimeout(() => setSuccess(''), 2000);
-        } catch (err) {
-            setError('Erro ao limpar questões: ' + err.message);
-        }
-    };
+
 
     const handleToggleValidation = async (question) => {
         const newValidated = !question.validated;
@@ -202,13 +190,26 @@ export default function QuestionViewer() {
         setError('');
         setShowRegenerateModal(false);
         try {
-            const response = await agentApi.regenerateImage(questionToRegenerate, regenerateInstructions);
-            setQuestions(prev => prev.map(q =>
-                q.id === questionToRegenerate.id
-                    ? { ...q, image_base64: response.image_base64 }
-                    : q
-            ));
-            setSuccess('Imagem regenerada com sucesso!');
+            const response = await agentApi.regenerateImage(questionToRegenerate, regenerateInstructions, syncDistractors);
+            setQuestions(prev => prev.map(q => {
+                if (q.id !== questionToRegenerate.id) return q;
+                const updated = { ...q, image_base64: response.image_base64 };
+                // Aplica distratores atualizados se disponíveis
+                if (response.distractors_updated && response.alternatives) {
+                    updated.alternatives = q.alternatives.map(alt => {
+                        const updatedAlt = response.alternatives.find(a => a.letter === alt.letter);
+                        if (updatedAlt && updatedAlt.modified) {
+                            return { ...alt, distractor: updatedAlt.distractor };
+                        }
+                        return alt;
+                    });
+                }
+                return updated;
+            }));
+            const successMsg = response.distractors_updated
+                ? 'Imagem regenerada e distratores atualizados com sucesso! 🔄'
+                : 'Imagem regenerada com sucesso!';
+            setSuccess(successMsg);
             setQuestionToRegenerate(null);
             setRegenerateInstructions('');
         } catch (err) {
@@ -225,21 +226,7 @@ export default function QuestionViewer() {
         setSuccess('Questão atualizada com sucesso!');
     };
 
-    const handleSelectQuestion = (questionId) => {
-        setSelectedQuestions(prev =>
-            prev.includes(questionId)
-                ? prev.filter(id => id !== questionId)
-                : [...prev, questionId]
-        );
-    };
 
-    const handleSelectAll = () => {
-        if (selectedQuestions.length === questions.length) {
-            setSelectedQuestions([]);
-        } else {
-            setSelectedQuestions(questions.map(q => q.id));
-        }
-    };
 
     const handleExport = async () => {
         if (!exportFileName.trim()) {
@@ -251,9 +238,7 @@ export default function QuestionViewer() {
         setError('');
 
         try {
-            const questionsToExport = selectedQuestions.length > 0
-                ? questions.filter(q => selectedQuestions.includes(q.id))
-                : questions;
+            const questionsToExport = questions;
 
             const formattedQuestions = questionsToExport.map(q => ({
                 question_number: q.question_number,
@@ -343,13 +328,7 @@ export default function QuestionViewer() {
                                     ✨ Gerar Mais
                                 </button>
                                 <button className="btn btn-secondary" onClick={() => setShowExportModal(true)}>
-                                    📥 Exportar {selectedQuestions.length > 0 && `(${selectedQuestions.length})`}
-                                </button>
-                                <button className="btn btn-ghost" onClick={handleSelectAll}>
-                                    {selectedQuestions.length === questions.length ? '☐ Desmarcar' : '☑ Selecionar'}
-                                </button>
-                                <button className="btn btn-danger btn-sm" onClick={handleClearAll}>
-                                    🗑️ Limpar Tudo
+                                    📥 Exportar
                                 </button>
                             </div>
 
@@ -443,22 +422,6 @@ export default function QuestionViewer() {
                                                             <div className="questions-list">
                                                                 {group.questions.map((question) => (
                                                                     <div key={question.id} style={{ position: 'relative' }}>
-                                                                        <div
-                                                                            style={{
-                                                                                position: 'absolute',
-                                                                                top: 'var(--space-md)',
-                                                                                right: 'var(--space-md)',
-                                                                                zIndex: 10
-                                                                            }}
-                                                                        >
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                className="checkbox"
-                                                                                checked={selectedQuestions.includes(question.id)}
-                                                                                onChange={() => handleSelectQuestion(question.id)}
-                                                                                title="Selecionar para exportação"
-                                                                            />
-                                                                        </div>
                                                                         <QuestionCard
                                                                             question={question}
                                                                             onGenerateImage={handleGenerateImage}
@@ -510,10 +473,7 @@ export default function QuestionViewer() {
                             </div>
 
                             <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: 'var(--space-lg)' }}>
-                                {selectedQuestions.length > 0
-                                    ? `${selectedQuestions.length} questões selecionadas serão exportadas.`
-                                    : `Todas as ${questions.length} questões serão exportadas.`
-                                }
+                                {`Todas as ${questions.length} questões serão exportadas.`}
                             </p>
 
                             <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
@@ -556,9 +516,18 @@ export default function QuestionViewer() {
                                 />
                             </div>
 
-                            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: 'var(--space-lg)' }}>
+                            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: 'var(--space-md)' }}>
                                 Descreva o que precisa ser corrigido ou melhorado na imagem.
                             </p>
+
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)', cursor: 'pointer', fontSize: '0.875rem' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={syncDistractors}
+                                    onChange={(e) => setSyncDistractors(e.target.checked)}
+                                />
+                                🔄 Sincronizar distratores com a nova imagem
+                            </label>
 
                             <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
                                 <button className="btn btn-primary" onClick={handleRegenerateImage}>
