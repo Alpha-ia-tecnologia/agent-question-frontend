@@ -192,7 +192,7 @@ export default function QuestionViewer() {
         try {
             // Envia a imagem atual para edição (não gera do zero)
             const existingImage = questionToRegenerate.image_base64 || null;
-            const response = await agentApi.regenerateImage(questionToRegenerate, regenerateInstructions, syncDistractors, existingImage);
+            const response = await agentApi.regenerateImage(questionToRegenerate, regenerateInstructions, syncDistractors, existingImage, questionToRegenerate.id);
             setQuestions(prev => prev.map(q => {
                 if (q.id !== questionToRegenerate.id) return q;
                 const updated = { ...q, image_base64: response.image_base64 };

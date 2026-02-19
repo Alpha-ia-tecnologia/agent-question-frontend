@@ -162,11 +162,12 @@ export const agentApi = {
     /**
      * Regenera imagem com instruções personalizadas
      */
-    async regenerateImage(question, customInstructions, syncDistractors = true, existingImageBase64 = null) {
+    async regenerateImage(question, customInstructions, syncDistractors = true, existingImageBase64 = null, questionId = null) {
         return request('/agent/regenerate-image', {
             method: 'POST',
             body: JSON.stringify({
                 question: question,
+                question_id: questionId,
                 custom_instructions: customInstructions,
                 sync_distractors: syncDistractors,
                 existing_image_base64: existingImageBase64,
@@ -341,6 +342,16 @@ export const questionsApi = {
         return request(`/api/questions/${questionId}/observation`, {
             method: 'PATCH',
             body: JSON.stringify({ observation }),
+        });
+    },
+
+    /**
+     * Atualiza campos de uma questão (alternativas, resposta correta, etc.)
+     */
+    async updateQuestion(questionId, updates) {
+        return request(`/api/questions/${questionId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(updates),
         });
     },
 };
