@@ -189,17 +189,27 @@ export default function QuestionViewer() {
                 const updated = { ...q, image_base64: response.image_base64 };
                 // Aplica correções da validação multimodal
                 if (response.distractors_updated && response.alternatives) {
-                    updated.alternatives = q.alternatives.map(alt => {
-                        const updatedAlt = response.alternatives.find(a => a.letter === alt.letter);
-                        if (updatedAlt && updatedAlt.modified) {
-                            return {
-                                ...alt,
-                                text: updatedAlt.text_modified ? updatedAlt.text : alt.text,
-                                distractor: updatedAlt.distractor || alt.distractor,
-                            };
-                        }
-                        return alt;
-                    });
+                    if (response.alternatives_recreated) {
+                        // NÍVEL 3: Alternativas recriadas do zero — substitui todas
+                        updated.alternatives = response.alternatives.map(a => ({
+                            letter: a.letter,
+                            text: a.text,
+                            distractor: a.distractor,
+                        }));
+                    } else {
+                        // NÍVEL 1-2: Ajuste/reescrita parcial
+                        updated.alternatives = q.alternatives.map(alt => {
+                            const updatedAlt = response.alternatives.find(a => a.letter === alt.letter);
+                            if (updatedAlt && updatedAlt.modified) {
+                                return {
+                                    ...alt,
+                                    text: updatedAlt.text_modified ? updatedAlt.text : alt.text,
+                                    distractor: updatedAlt.distractor || alt.distractor,
+                                };
+                            }
+                            return alt;
+                        });
+                    }
                     // Atualiza resposta correta se mudou
                     if (response.correct_answer) {
                         updated.correct_answer = response.correct_answer;
@@ -210,10 +220,14 @@ export default function QuestionViewer() {
             // Mensagem de sucesso detalhada
             const changes = [];
             if (response.distractors_updated) {
-                const textChanges = response.alternatives?.filter(a => a.text_modified)?.length || 0;
-                const distChanges = response.alternatives?.filter(a => a.modified && !a.text_modified)?.length || 0;
-                if (textChanges > 0) changes.push(`${textChanges} alternativa(s) corrigida(s)`);
-                if (distChanges > 0) changes.push(`${distChanges} distrator(es) atualizado(s)`);
+                if (response.alternatives_recreated) {
+                    changes.push('🆕 todas as alternativas recriadas');
+                } else {
+                    const textChanges = response.alternatives?.filter(a => a.text_modified)?.length || 0;
+                    const distChanges = response.alternatives?.filter(a => a.modified && !a.text_modified)?.length || 0;
+                    if (textChanges > 0) changes.push(`${textChanges} alternativa(s) corrigida(s)`);
+                    if (distChanges > 0) changes.push(`${distChanges} distrator(es) atualizado(s)`);
+                }
                 if (response.correct_answer && response.correct_answer !== questionToRegenerate.correct_answer) {
                     changes.push(`resposta correta alterada para ${response.correct_answer}`);
                 }
