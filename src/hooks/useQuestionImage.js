@@ -14,11 +14,9 @@ export function useQuestionImage(question) {
         if (question.imageFromServer) {
             return question.imageFromServer;
         }
-        if (question.image_url) {
-            // Handle both absolute and relative URLs
-            return question.image_url.startsWith('http')
-                ? question.image_url
-                : `${API_BASE}${question.image_url}`;
+        if (question.image_url && question.image_url.startsWith('http')) {
+            // Only use absolute external URLs; relative server paths are often broken
+            return question.image_url;
         }
         return null;
     }, [question.image_base64, question.imageFromServer, question.image_url]);
