@@ -2,7 +2,7 @@
  * API Service - Comunicação com o backend
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
 
 /**
  * Requisição genérica com injeção automática de token JWT
@@ -49,6 +49,13 @@ async function request(endpoint, options = {}) {
 
 export const agentApi = {
     /**
+     * Lista modelos de LLM disponíveis para geração
+     */
+    async listModels() {
+        return request('/agent/models')
+    },
+
+    /**
      * Gera questões educacionais
      */
     async generateQuestions(params) {
@@ -75,21 +82,34 @@ export const agentApi = {
      * @returns {Promise<Object>} Resultado final com questões
      */
     async generateQuestionsStream(params, onProgress) {
+        const payload = {
+            count_questions: params.countQuestions,
+            count_alternatives: params.countAlternatives,
+            skill: params.skill,
+            proficiency_level: params.proficiencyLevel,
+            grade: params.grade,
+            authentic: params.authentic || false,
+            use_real_text: params.useRealText || false,
+            image_dependency: params.imageDependency || 'none',
+            model_evaluation_type: params.modelEvaluationType || 'SAEB',
+            curriculum_component: params.curriculumComponent || '',
+        }
+        if (Array.isArray(params.combinedSkills) && params.combinedSkills.length >= 2) {
+            payload.combined_skills = params.combinedSkills.map(s => ({
+                skill: s.skill,
+                curriculum_component: s.curriculumComponent,
+            }))
+        }
+        if (params.contextTheme && String(params.contextTheme).trim()) {
+            payload.context_theme = String(params.contextTheme).trim()
+        }
+        if (params.llmModel && String(params.llmModel).trim()) {
+            payload.llm_model = String(params.llmModel).trim()
+        }
         const response = await fetch(`${API_BASE_URL}/agent/ask-agent-stream`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                count_questions: params.countQuestions,
-                count_alternatives: params.countAlternatives,
-                skill: params.skill,
-                proficiency_level: params.proficiencyLevel,
-                grade: params.grade,
-                authentic: params.authentic || false,
-                use_real_text: params.useRealText || false,
-                image_dependency: params.imageDependency || 'none',
-                model_evaluation_type: params.modelEvaluationType || 'SAEB',
-                curriculum_component: params.curriculumComponent || '',
-            }),
+            body: JSON.stringify(payload),
         });
 
         if (!response.ok) {
@@ -99,6 +119,7 @@ export const agentApi = {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let finalResult = null;
+        let groupId = null;
         let buffer = '';
 
         const processLine = (rawLine) => {
@@ -115,6 +136,10 @@ export const agentApi = {
                 if (event.type === 'finished') {
                     console.log('[SSE] ✅ Finished event received! Questions:', event.result?.questions?.length);
                     finalResult = event.result;
+                }
+                if (event.type === 'group_created') {
+                    console.log('[SSE] 📦 Group created:', event.group_id);
+                    groupId = event.group_id;
                 }
                 if (event.type === 'error') {
                     throw new Error(event.message);
@@ -144,8 +169,8 @@ export const agentApi = {
             processLine(buffer);
         }
 
-        console.log('[SSE] Stream complete. Result:', finalResult ? `${finalResult.questions?.length} questions` : 'NULL');
-        return finalResult;
+        console.log('[SSE] Stream complete. Result:', finalResult ? `${finalResult.questions?.length} questions` : 'NULL', 'Group:', groupId);
+        return finalResult ? { ...finalResult, groupId } : null;
     },
 
 

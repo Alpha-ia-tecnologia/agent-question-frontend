@@ -1,64 +1,40 @@
-import { useState } from 'react';
+import { useState } from 'react'
+import { ChevronDown, Target } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
-/**
- * Componente de grupo de habilidades com accordion
- * Agrupa questões por skill com expand/collapse
- */
-export default function SkillGroup({
-    skillName,
-    skillId,
-    questions,
-    children,
-    defaultExpanded = true
-}) {
-    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-
-    // Calcula contadores
-    const totalQuestions = questions?.length || 0;
-    const validatedCount = questions?.filter(q => q.validated)?.length || 0;
-    const progress = totalQuestions > 0 ? (validatedCount / totalQuestions) * 100 : 0;
+export default function SkillGroup({ skillName, skillId, questions, children, defaultExpanded = true }) {
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded)
+    const total = questions?.length || 0
+    const validated = questions?.filter(q => q.validated)?.length || 0
+    const progress = total > 0 ? (validated / total) * 100 : 0
 
     return (
-        <div className={`skill-group ${isExpanded ? 'expanded' : ''}`}>
-            <div
-                className="skill-group-header"
-                onClick={() => setIsExpanded(!isExpanded)}
+        <div className="rounded-md border border-border bg-card overflow-hidden">
+            <button
+                type="button"
+                onClick={() => setIsExpanded(e => !e)}
+                aria-expanded={isExpanded}
+                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-muted/40 transition-colors text-left"
             >
-                <div className="skill-group-info">
-                    <div className="skill-group-icon">📚</div>
-                    <div className="skill-group-text">
-                        <h3 className="skill-group-title">{skillName}</h3>
-                        {skillId && (
-                            <span className="skill-group-id">{skillId}</span>
-                        )}
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <Target className="size-4 text-primary shrink-0" />
+                    <div className="min-w-0 flex-1">
+                        <div className="text-xs font-medium truncate">{skillName}</div>
+                        {skillId && <div className="text-[10px] font-mono text-muted-foreground mt-0.5">{skillId}</div>}
                     </div>
                 </div>
-
-                <div className="skill-group-meta">
-                    {/* Barra de progresso */}
-                    <div className="skill-group-progress">
-                        <div
-                            className="skill-group-progress-bar"
-                            style={{ width: `${progress}%` }}
-                        />
+                <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5">
+                        <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+                        </div>
+                        <span className="text-[10px] font-mono text-muted-foreground tabular-nums">{validated}/{total}</span>
                     </div>
-
-                    {/* Badge de contagem */}
-                    <div className="skill-group-badge">
-                        <span className="validated-count">{validatedCount}</span>
-                        <span className="separator">/</span>
-                        <span className="total-count">{totalQuestions}</span>
-                    </div>
-
-                    <span className={`skill-group-expand ${isExpanded ? 'expanded' : ''}`}>
-                        ▼
-                    </span>
+                    <ChevronDown className={cn('size-4 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
                 </div>
-            </div>
-
-            <div className={`skill-group-content ${isExpanded ? 'expanded' : ''}`}>
-                {children}
-            </div>
+            </button>
+            {isExpanded && <div className="border-t border-border p-2 bg-background">{children}</div>}
         </div>
-    );
+    )
 }

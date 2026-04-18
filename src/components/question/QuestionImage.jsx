@@ -1,20 +1,16 @@
-/**
- * Componente de exibição de imagem da questão com tratamento de erro
- */
 export default function QuestionImage({ imageSrc }) {
-    if (!imageSrc) return null;
-
+    if (!imageSrc) return null
     return (
-        <div className="question-image-container">
+        <div className="my-4 flex justify-center">
             <img
                 src={imageSrc}
                 alt="Ilustração da questão"
-                className="question-image"
+                className="max-h-96 rounded-lg border border-border bg-muted/30 object-contain"
                 onError={(e) => {
-                    console.error('Erro ao carregar imagem:', imageSrc?.substring(0, 50));
-                    e.target.style.display = 'none';
+                    console.error('Erro ao carregar imagem:', imageSrc?.substring(0, 50))
+                    e.target.style.display = 'none'
                 }}
             />
         </div>
-    );
+    )
 }

@@ -1,572 +1,356 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
-import QuestionCard from '../components/QuestionCard';
-import SkillGroup from '../components/SkillGroup';
-import LoadingSpinner from '../components/LoadingSpinner';
-import { agentApi, docApi, questionsApi } from '../api/api';
-import { evaluationData } from '../data/evaluationData';
-import ComponentGroup from '../components/ComponentGroup';
-import GradeGroup from '../components/GradeGroup';
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import Layout from '../components/Layout'
+import QuestionCard from '../components/QuestionCard'
+import SkillGroup from '../components/SkillGroup'
+import ComponentGroup from '../components/ComponentGroup'
+import GradeGroup from '../components/GradeGroup'
+import { agentApi, docApi, questionsApi } from '../api/api'
+import { evaluationData } from '../data/evaluationData'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import {
+    AlertCircle, CheckCircle2, X, Sparkles, Download, Search, FileText,
+} from 'lucide-react'
 
 export default function QuestionViewer() {
-    const navigate = useNavigate();
+    const navigate = useNavigate()
 
-    const [questions, setQuestions] = useState([]);
-
-    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
-    const [exportFileName, setExportFileName] = useState('');
-    const [showExportModal, setShowExportModal] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
-
-    // Filtro de validação
-    const [validationFilter, setValidationFilter] = useState('all'); // 'all', 'validated', 'pending'
-
-    // Estado para regeneração de imagem
-    const [showRegenerateModal, setShowRegenerateModal] = useState(false);
-    const [regenerateInstructions, setRegenerateInstructions] = useState('');
-    const [questionToRegenerate, setQuestionToRegenerate] = useState(null);
-    const [syncDistractors, setSyncDistractors] = useState(true);
-
-    const [isLoading, setIsLoading] = useState(true);
+    const [questions, setQuestions] = useState([])
+    const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+    const [isExporting, setIsExporting] = useState(false)
+    const [exportFileName, setExportFileName] = useState('')
+    const [showExportModal, setShowExportModal] = useState(false)
+    const [error, setError] = useState('')
+    const [success, setSuccess] = useState('')
+    const [validationFilter, setValidationFilter] = useState('all')
+    const [showRegenerateModal, setShowRegenerateModal] = useState(false)
+    const [regenerateInstructions, setRegenerateInstructions] = useState('')
+    const [questionToRegenerate, setQuestionToRegenerate] = useState(null)
+    const [syncDistractors, setSyncDistractors] = useState(true)
+    const [isLoading, setIsLoading] = useState(true)
 
     const fetchQuestions = useCallback(async () => {
-        setIsLoading(true);
+        setIsLoading(true)
         try {
-            const data = await questionsApi.list({ limit: 200 });
-            setQuestions(data.questions || []);
+            const data = await questionsApi.list({ limit: 200 })
+            setQuestions(data.questions || [])
         } catch (err) {
-            setError('Erro ao carregar questões: ' + err.message);
+            setError('Erro ao carregar questões: ' + err.message)
         } finally {
-            setIsLoading(false);
+            setIsLoading(false)
         }
-    }, []);
+    }, [])
 
-    useEffect(() => {
-        fetchQuestions();
-    }, [fetchQuestions]);
+    useEffect(() => { fetchQuestions() }, [fetchQuestions])
 
-    // Agrupar questões por componente curricular, série e skill
     const { groupedByComponent, sortedComponents } = useMemo(() => {
-        // Aplica filtro de validação
-        let filtered = questions;
-        if (validationFilter === 'validated') {
-            filtered = questions.filter(q => q.validated);
-        } else if (validationFilter === 'pending') {
-            filtered = questions.filter(q => !q.validated);
-        }
-
-        // Ordena do mais recente para o mais antigo
+        let filtered = questions
+        if (validationFilter === 'validated') filtered = questions.filter(q => q.validated)
+        else if (validationFilter === 'pending') filtered = questions.filter(q => !q.validated)
         const sorted = [...filtered].sort((a, b) => {
-            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return dateB - dateA;
-        });
-
-        // Infere componente curricular a partir do skill usando evaluationData
-        const inferComponent = (question) => {
-            if (question.curriculum_component) return question.curriculum_component;
-            const skill = question.skill || '';
-            const idSkill = question.id_skill || '';
-            for (const [modelKey, model] of Object.entries(evaluationData)) {
+            const dA = a.createdAt ? new Date(a.createdAt).getTime() : 0
+            const dB = b.createdAt ? new Date(b.createdAt).getTime() : 0
+            return dB - dA
+        })
+        const inferComponent = (q) => {
+            if (q.curriculum_component) return q.curriculum_component
+            const skill = q.skill || ''; const idSkill = q.id_skill || ''
+            for (const [, model] of Object.entries(evaluationData)) {
                 for (const [compKey, compGrades] of Object.entries(model.components || {})) {
-                    for (const [gradeKey, skillsList] of Object.entries(compGrades)) {
-                        if (!Array.isArray(skillsList)) continue;
-                        if (skillsList.some(s => s.code === idSkill || s.description === skill)) {
-                            return compKey;
-                        }
+                    for (const [, list] of Object.entries(compGrades)) {
+                        if (!Array.isArray(list)) continue
+                        if (list.some(s => s.code === idSkill || s.description === skill)) return compKey
                     }
                 }
             }
-            return 'OTHER';
-        };
+            return 'OTHER'
+        }
+        const byComponent = {}
+        sorted.forEach(q => {
+            const comp = inferComponent(q)
+            const grade = q.grade || 'Sem série'
+            const skill = q.skill || 'Sem categoria'
+            if (!byComponent[comp]) byComponent[comp] = {}
+            if (!byComponent[comp][grade]) byComponent[comp][grade] = {}
+            if (!byComponent[comp][grade][skill]) byComponent[comp][grade][skill] = { skillId: q.id_skill, questions: [] }
+            byComponent[comp][grade][skill].questions.push(q)
+        })
+        const order = ['LP', 'MT', 'OTHER']
+        const sortedComps = Object.keys(byComponent).sort((a, b) => (order.indexOf(a) === -1 ? 99 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 99 : order.indexOf(b)))
+        return { groupedByComponent: byComponent, sortedComponents: sortedComps }
+    }, [questions, validationFilter])
 
-        // Agrupa: componente → série → skill → questões
-        const byComponent = {};
-        sorted.forEach(question => {
-            const comp = inferComponent(question);
-            const grade = question.grade || 'Sem série';
-            const skill = question.skill || 'Sem categoria';
-
-            if (!byComponent[comp]) byComponent[comp] = {};
-            if (!byComponent[comp][grade]) byComponent[comp][grade] = {};
-            if (!byComponent[comp][grade][skill]) {
-                byComponent[comp][grade][skill] = {
-                    skillId: question.id_skill,
-                    questions: []
-                };
-            }
-            byComponent[comp][grade][skill].questions.push(question);
-        });
-
-        // Ordena componentes (LP, MT, OTHER)
-        const componentOrder = ['LP', 'MT', 'OTHER'];
-        const sortedComps = Object.keys(byComponent).sort((a, b) => {
-            return (componentOrder.indexOf(a) === -1 ? 99 : componentOrder.indexOf(a)) -
-                (componentOrder.indexOf(b) === -1 ? 99 : componentOrder.indexOf(b));
-        });
-
-        return { groupedByComponent: byComponent, sortedComponents: sortedComps };
-    }, [questions, validationFilter]);
-
-    // Flag para empty check
-    const hasQuestions = sortedComponents.length > 0;
-
-    // Todas as questões filtradas para contagem
-    const allFilteredQuestions = useMemo(() => {
-        return sortedComponents.flatMap(comp =>
-            Object.values(groupedByComponent[comp]).flatMap(gradeGroups =>
-                Object.values(gradeGroups).flatMap(g => g.questions)
-            )
-        );
-    }, [groupedByComponent, sortedComponents]);
-
-    // Contadores
-    const counters = useMemo(() => {
-        const total = questions.length;
-        const validated = questions.filter(q => q.validated).length;
-        return { total, validated, pending: total - validated };
-    }, [questions]);
-
-
+    const hasQuestions = sortedComponents.length > 0
+    const counters = useMemo(() => ({
+        total: questions.length,
+        validated: questions.filter(q => q.validated).length,
+        pending: questions.filter(q => !q.validated).length,
+    }), [questions])
 
     const handleToggleValidation = async (question) => {
-        const newValidated = !question.validated;
+        const newValidated = !question.validated
         try {
-            await questionsApi.toggleValidation(question.id, newValidated);
-            setQuestions(prev => prev.map(q =>
-                q.id === question.id ? { ...q, validated: newValidated } : q
-            ));
-            setSuccess(newValidated ? 'Questão validada!' : 'Validação removida');
-            setTimeout(() => setSuccess(''), 2000);
-        } catch (err) {
-            setError('Erro ao atualizar validação: ' + err.message);
-        }
-    };
+            await questionsApi.toggleValidation(question.id, newValidated)
+            setQuestions(prev => prev.map(q => q.id === question.id ? { ...q, validated: newValidated } : q))
+            setSuccess(newValidated ? 'Questão validada!' : 'Validação removida')
+            setTimeout(() => setSuccess(''), 2000)
+        } catch (err) { setError('Erro ao atualizar validação: ' + err.message) }
+    }
 
     const handleGenerateImage = async (question) => {
-        setIsGeneratingImage(true);
-        setError('');
+        setIsGeneratingImage(true); setError('')
         try {
-            const response = await agentApi.generateImage(question);
-            setQuestions(prev => prev.map(q =>
-                q.id === question.id
-                    ? { ...q, image_base64: response.image_base64, imageFromServer: response.image_url || null }
-                    : q
-            ));
-            setSuccess('Imagem gerada e salva com sucesso!');
-            return response.image_base64;
-        } catch (err) {
-            setError('Erro ao gerar imagem: ' + err.message);
-            return null;
-        } finally {
-            setIsGeneratingImage(false);
-        }
-    };
+            const response = await agentApi.generateImage(question)
+            setQuestions(prev => prev.map(q => q.id === question.id ? { ...q, image_base64: response.image_base64, imageFromServer: response.image_url || null } : q))
+            setSuccess('Imagem gerada e salva com sucesso!')
+            return response.image_base64
+        } catch (err) { setError('Erro ao gerar imagem: ' + err.message); return null }
+        finally { setIsGeneratingImage(false) }
+    }
 
     const openRegenerateModal = (question) => {
-        setQuestionToRegenerate(question);
-        setRegenerateInstructions('');
-        setShowRegenerateModal(true);
-    };
+        setQuestionToRegenerate(question); setRegenerateInstructions(''); setShowRegenerateModal(true)
+    }
 
     const handleRegenerateImage = async () => {
         if (!questionToRegenerate || !regenerateInstructions.trim()) {
-            setError('Por favor, forneça instruções para correção da imagem.');
-            return;
+            setError('Forneça instruções para a correção da imagem.'); return
         }
-        setIsGeneratingImage(true);
-        setError('');
-        setShowRegenerateModal(false);
+        setIsGeneratingImage(true); setError(''); setShowRegenerateModal(false)
         try {
-            // Envia a imagem atual para edição (não gera do zero)
-            const existingImage = questionToRegenerate.image_base64 || null;
-            const response = await agentApi.regenerateImage(questionToRegenerate, regenerateInstructions, syncDistractors, existingImage, questionToRegenerate.id);
+            const existing = questionToRegenerate.image_base64 || null
+            const response = await agentApi.regenerateImage(questionToRegenerate, regenerateInstructions, syncDistractors, existing, questionToRegenerate.id)
             setQuestions(prev => prev.map(q => {
-                if (q.id !== questionToRegenerate.id) return q;
-                const updated = { ...q, image_base64: response.image_base64 };
-                // Aplica correções da validação multimodal
+                if (q.id !== questionToRegenerate.id) return q
+                const updated = { ...q, image_base64: response.image_base64 }
                 if (response.distractors_updated && response.alternatives) {
                     if (response.alternatives_recreated) {
-                        // NÍVEL 3: Alternativas recriadas do zero — substitui todas
-                        updated.alternatives = response.alternatives.map(a => ({
-                            letter: a.letter,
-                            text: a.text,
-                            distractor: a.distractor,
-                        }));
+                        updated.alternatives = response.alternatives.map(a => ({ letter: a.letter, text: a.text, distractor: a.distractor }))
                     } else {
-                        // NÍVEL 1-2: Ajuste/reescrita parcial
                         updated.alternatives = q.alternatives.map(alt => {
-                            const updatedAlt = response.alternatives.find(a => a.letter === alt.letter);
-                            if (updatedAlt && updatedAlt.modified) {
-                                return {
-                                    ...alt,
-                                    text: updatedAlt.text_modified ? updatedAlt.text : alt.text,
-                                    distractor: updatedAlt.distractor || alt.distractor,
-                                };
-                            }
-                            return alt;
-                        });
+                            const up = response.alternatives.find(a => a.letter === alt.letter)
+                            if (up && up.modified) return { ...alt, text: up.text_modified ? up.text : alt.text, distractor: up.distractor || alt.distractor }
+                            return alt
+                        })
                     }
-                    // Atualiza resposta correta se mudou
-                    if (response.correct_answer) {
-                        updated.correct_answer = response.correct_answer;
-                    }
+                    if (response.correct_answer) updated.correct_answer = response.correct_answer
                 }
-                return updated;
-            }));
-            // Mensagem de sucesso detalhada
-            const changes = [];
+                return updated
+            }))
+            const changes = []
             if (response.distractors_updated) {
-                if (response.alternatives_recreated) {
-                    changes.push('🆕 todas as alternativas recriadas');
-                } else {
-                    const textChanges = response.alternatives?.filter(a => a.text_modified)?.length || 0;
-                    const distChanges = response.alternatives?.filter(a => a.modified && !a.text_modified)?.length || 0;
-                    if (textChanges > 0) changes.push(`${textChanges} alternativa(s) corrigida(s)`);
-                    if (distChanges > 0) changes.push(`${distChanges} distrator(es) atualizado(s)`);
+                if (response.alternatives_recreated) changes.push('alternativas recriadas')
+                else {
+                    const t = response.alternatives?.filter(a => a.text_modified).length || 0
+                    const d = response.alternatives?.filter(a => a.modified && !a.text_modified).length || 0
+                    if (t) changes.push(`${t} alternativa(s) corrigida(s)`)
+                    if (d) changes.push(`${d} distrator(es) atualizado(s)`)
                 }
-                if (response.correct_answer && response.correct_answer !== questionToRegenerate.correct_answer) {
-                    changes.push(`resposta correta alterada para ${response.correct_answer}`);
-                }
+                if (response.correct_answer && response.correct_answer !== questionToRegenerate.correct_answer) changes.push(`resposta → ${response.correct_answer}`)
             }
-            const successMsg = changes.length > 0
-                ? `Imagem regenerada e validada! 🔄 ${changes.join(', ')}`
-                : 'Imagem regenerada com sucesso!';
-            setSuccess(successMsg);
-            setQuestionToRegenerate(null);
-            setRegenerateInstructions('');
-        } catch (err) {
-            setError('Erro ao regenerar imagem: ' + err.message);
-        } finally {
-            setIsGeneratingImage(false);
-        }
-    };
-
-    const handleUpdateQuestion = (questionId, updatedFields) => {
-        setQuestions(prev => prev.map(q =>
-            q.id === questionId ? { ...q, ...updatedFields } : q
-        ));
-        setSuccess('Questão atualizada com sucesso!');
-    };
-
-
-
-    const handleExport = async () => {
-        if (!exportFileName.trim()) {
-            setError('Digite um nome para o arquivo');
-            return;
-        }
-
-        setIsExporting(true);
-        setError('');
-
-        try {
-            const questionsToExport = questions;
-
-            const formattedQuestions = questionsToExport.map(q => ({
-                question_number: q.question_number,
-                id_skill: q.id_skill,
-                skill: q.skill,
-                proficiency_level: q.proficiency_level,
-                proficiency_description: q.proficiency_description,
-                title: q.title,
-                text: q.text,
-                source: q.source,
-                question_statement: q.question_statement,
-                alternatives: q.alternatives,
-                correct_answer: q.correct_answer,
-                explanation_question: q.explanation_question,
-                ...(q.image_base64 && { image_base64: q.image_base64 }),
-                ...(!q.image_base64 && (q.image_url || q.imageFromServer) && {
-                    image_url: q.image_url || q.imageFromServer
-                }),
-            }));
-
-            await docApi.generateDocx(formattedQuestions, exportFileName);
-            await docApi.downloadDocx(exportFileName);
-
-            setSuccess('Documento exportado com sucesso!');
-            setShowExportModal(false);
-            setExportFileName('');
-        } catch (err) {
-            setError('Erro ao exportar: ' + err.message);
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
-
-
-    if (isLoading) {
-        return <LoadingSpinner text="Carregando questões..." />;
+            setSuccess(changes.length ? `Imagem regenerada: ${changes.join(', ')}` : 'Imagem regenerada!')
+            setQuestionToRegenerate(null); setRegenerateInstructions('')
+        } catch (err) { setError('Erro ao regenerar imagem: ' + err.message) }
+        finally { setIsGeneratingImage(false) }
     }
 
-    if (isExporting) {
-        return <LoadingSpinner text="Gerando documento DOCX..." />;
+    const handleUpdateQuestion = (questionId, updatedFields) => {
+        setQuestions(prev => prev.map(q => q.id === questionId ? { ...q, ...updatedFields } : q))
+        setSuccess('Questão atualizada!')
+    }
+
+    const handleExport = async () => {
+        if (!exportFileName.trim()) { setError('Digite um nome para o arquivo'); return }
+        setIsExporting(true); setError('')
+        try {
+            const formatted = questions.map(q => ({
+                question_number: q.question_number, id_skill: q.id_skill, skill: q.skill,
+                proficiency_level: q.proficiency_level, proficiency_description: q.proficiency_description,
+                title: q.title, text: q.text, source: q.source,
+                question_statement: q.question_statement, alternatives: q.alternatives,
+                correct_answer: q.correct_answer, explanation_question: q.explanation_question,
+                ...(q.image_base64 && { image_base64: q.image_base64 }),
+                ...(!q.image_base64 && (q.image_url || q.imageFromServer) && { image_url: q.image_url || q.imageFromServer }),
+            }))
+            await docApi.generateDocx(formatted, exportFileName)
+            await docApi.downloadDocx(exportFileName)
+            setSuccess('Documento exportado!')
+            setShowExportModal(false); setExportFileName('')
+        } catch (err) { setError('Erro ao exportar: ' + err.message) }
+        finally { setIsExporting(false) }
     }
 
     return (
         <Layout>
-            <div className="page-header">
-                <h1 className="page-title">📝 Minhas Questões</h1>
-                <p className="page-subtitle">
-                    {counters.total} {counters.total === 1 ? 'questão gerada' : 'questões geradas'}
-                    {counters.validated > 0 && (
-                        <span className="validated-badge"> • ✓ {counters.validated} validadas</span>
-                    )}
-                </p>
-            </div>
+            <div className="flex flex-col gap-6">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight">Minhas Questões</h1>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            {counters.total} {counters.total === 1 ? 'questão gerada' : 'questões geradas'}
+                            {counters.validated > 0 && <span className="ml-2 text-emerald-600 dark:text-emerald-400">• {counters.validated} validadas</span>}
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button onClick={() => navigate('/gerar-questoes')}><Sparkles className="size-4" />Gerar Mais</Button>
+                        <Button variant="secondary" disabled={questions.length === 0} onClick={() => setShowExportModal(true)}><Download className="size-4" />Exportar</Button>
+                    </div>
+                </div>
 
-            <div className="page-content">
                 {error && (
-                    <div className="alert alert-error">
-                        {error}
-                        <button
-                            onClick={() => setError('')}
-                            style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
-                        >
-                            ✕
-                        </button>
-                    </div>
+                    <Alert variant="destructive">
+                        <AlertCircle className="size-4" />
+                        <AlertDescription className="flex items-center justify-between gap-2">
+                            <span>{error}</span>
+                            <Button variant="ghost" size="icon" className="size-6" onClick={() => setError('')}><X className="size-3" /></Button>
+                        </AlertDescription>
+                    </Alert>
                 )}
-
                 {success && (
-                    <div className="alert alert-success">
-                        {success}
-                        <button
-                            onClick={() => setSuccess('')}
-                            style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
-                        >
-                            ✕
-                        </button>
-                    </div>
+                    <Alert className="border-emerald-500/30 bg-emerald-500/5">
+                        <CheckCircle2 className="size-4 text-emerald-600" />
+                        <AlertDescription className="flex items-center justify-between gap-2">
+                            <span>{success}</span>
+                            <Button variant="ghost" size="icon" className="size-6" onClick={() => setSuccess('')}><X className="size-3" /></Button>
+                        </AlertDescription>
+                    </Alert>
                 )}
 
-                {/* Actions Bar */}
                 {questions.length > 0 && (
-                    <div className="card actions-card" style={{ marginBottom: 'var(--space-lg)' }}>
-                        <div className="actions-bar">
-                            <div className="actions-left">
-                                <button className="btn btn-primary" onClick={() => navigate('/gerar-questoes')}>
-                                    ✨ Gerar Mais
-                                </button>
-                                <button className="btn btn-secondary" onClick={() => setShowExportModal(true)}>
-                                    📥 Exportar
-                                </button>
-                            </div>
-
-                            {/* Filtros de validação */}
-                            <div className="filter-tabs">
-                                <button
-                                    className={`filter-tab ${validationFilter === 'all' ? 'active' : ''}`}
-                                    onClick={() => setValidationFilter('all')}
-                                >
-                                    Todas ({counters.total})
-                                </button>
-                                <button
-                                    className={`filter-tab ${validationFilter === 'validated' ? 'active' : ''}`}
-                                    onClick={() => setValidationFilter('validated')}
-                                >
-                                    ✓ Validadas ({counters.validated})
-                                </button>
-                                <button
-                                    className={`filter-tab ${validationFilter === 'pending' ? 'active' : ''}`}
-                                    onClick={() => setValidationFilter('pending')}
-                                >
-                                    ○ Pendentes ({counters.pending})
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <Tabs value={validationFilter} onValueChange={setValidationFilter}>
+                        <TabsList>
+                            <TabsTrigger value="all">Todas ({counters.total})</TabsTrigger>
+                            <TabsTrigger value="validated">Validadas ({counters.validated})</TabsTrigger>
+                            <TabsTrigger value="pending">Pendentes ({counters.pending})</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
                 )}
 
-                {/* Questions List - Grouped by Component and Skill */}
-                {questions.length === 0 ? (
-                    <div className="empty-state">
-                        <div className="empty-state-icon">📝</div>
-                        <h3 className="empty-state-title">Nenhuma questão gerada ainda</h3>
-                        <p>Comece gerando suas primeiras questões com IA.</p>
-                        <button
-                            className="btn btn-primary btn-lg"
-                            style={{ marginTop: 'var(--space-lg)' }}
-                            onClick={() => navigate('/gerar-questoes')}
-                        >
-                            ✨ Gerar Questões
-                        </button>
-                    </div>
+                {isLoading || isExporting ? (
+                    <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+                ) : questions.length === 0 ? (
+                    <Card>
+                        <CardContent className="py-14 text-center">
+                            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
+                                <FileText className="size-5" />
+                            </div>
+                            <h3 className="font-semibold">Nenhuma questão gerada ainda</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">Comece gerando suas primeiras questões com IA.</p>
+                            <Button className="mt-4" onClick={() => navigate('/gerar-questoes')}>
+                                <Sparkles className="size-4" /> Gerar Questões
+                            </Button>
+                        </CardContent>
+                    </Card>
                 ) : !hasQuestions ? (
-                    <div className="empty-state">
-                        <div className="empty-state-icon">🔍</div>
-                        <h3 className="empty-state-title">Nenhuma questão encontrada</h3>
-                        <p>Tente outro filtro.</p>
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => setValidationFilter('all')}
-                        >
-                            Ver Todas
-                        </button>
-                    </div>
+                    <Card>
+                        <CardContent className="py-14 text-center">
+                            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
+                                <Search className="size-5" />
+                            </div>
+                            <h3 className="font-semibold">Nenhuma questão neste filtro</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">Tente outro filtro.</p>
+                            <Button variant="outline" size="sm" className="mt-4" onClick={() => setValidationFilter('all')}>Ver todas</Button>
+                        </CardContent>
+                    </Card>
                 ) : (
-                    <div className="skill-groups-list">
+                    <div className="space-y-3">
                         {sortedComponents.map(compId => {
-                            const gradeGroups = groupedByComponent[compId];
-                            const sortedGrades = Object.keys(gradeGroups);
-                            const allCompQuestions = sortedGrades.flatMap(g =>
-                                Object.values(gradeGroups[g]).flatMap(s => s.questions)
-                            );
+                            const gradeGroups = groupedByComponent[compId]
+                            const sortedGrades = Object.keys(gradeGroups)
+                            const allCompQs = sortedGrades.flatMap(g => Object.values(gradeGroups[g]).flatMap(s => s.questions))
                             return (
-                                <ComponentGroup
-                                    key={compId}
-                                    componentId={compId}
-                                    questions={allCompQuestions}
-                                    defaultExpanded={false}
-                                >
+                                <ComponentGroup key={compId} componentId={compId} questions={allCompQs} defaultExpanded={false}>
                                     {sortedGrades.map(grade => {
-                                        const skillGroups = gradeGroups[grade];
-                                        const sortedSkillNames = Object.keys(skillGroups).sort();
-                                        const allGradeQuestions = sortedSkillNames.flatMap(s => skillGroups[s].questions);
+                                        const skillGroups = gradeGroups[grade]
+                                        const sortedSkillNames = Object.keys(skillGroups).sort()
+                                        const allGradeQs = sortedSkillNames.flatMap(s => skillGroups[s].questions)
                                         return (
-                                            <GradeGroup
-                                                key={grade}
-                                                grade={grade}
-                                                questions={allGradeQuestions}
-                                                defaultExpanded={false}
-                                            >
+                                            <GradeGroup key={grade} grade={grade} questions={allGradeQs} defaultExpanded={false}>
                                                 {sortedSkillNames.map(skillName => {
-                                                    const group = skillGroups[skillName];
+                                                    const group = skillGroups[skillName]
                                                     return (
-                                                        <SkillGroup
-                                                            key={skillName}
-                                                            skillName={skillName}
-                                                            skillId={group.skillId}
-                                                            questions={group.questions}
-                                                            defaultExpanded={false}
-                                                        >
-                                                            <div className="questions-list">
-                                                                {group.questions.map((question) => (
-                                                                    <div key={question.id} style={{ position: 'relative' }}>
-                                                                        <QuestionCard
-                                                                            question={question}
-                                                                            onGenerateImage={handleGenerateImage}
-                                                                            onRegenerateImage={openRegenerateModal}
-                                                                            onUpdateQuestion={handleUpdateQuestion}
-                                                                            onToggleValidation={handleToggleValidation}
-                                                                            isGeneratingImage={isGeneratingImage}
-                                                                        />
-                                                                    </div>
+                                                        <SkillGroup key={skillName} skillName={skillName} skillId={group.skillId} questions={group.questions} defaultExpanded={false}>
+                                                            <div className="flex flex-col gap-2">
+                                                                {group.questions.map((q) => (
+                                                                    <QuestionCard
+                                                                        key={q.id}
+                                                                        question={q}
+                                                                        onGenerateImage={handleGenerateImage}
+                                                                        onRegenerateImage={openRegenerateModal}
+                                                                        onUpdateQuestion={handleUpdateQuestion}
+                                                                        onToggleValidation={handleToggleValidation}
+                                                                        isGeneratingImage={isGeneratingImage}
+                                                                    />
                                                                 ))}
                                                             </div>
                                                         </SkillGroup>
-                                                    );
+                                                    )
                                                 })}
                                             </GradeGroup>
-                                        );
+                                        )
                                     })}
                                 </ComponentGroup>
-                            );
+                            )
                         })}
                     </div>
                 )}
-
-                {/* Export Modal */}
-                {showExportModal && (
-                    <div
-                        className="loading-overlay"
-                        onClick={() => setShowExportModal(false)}
-                        style={{ cursor: 'pointer' }}
-                    >
-                        <div
-                            className="card"
-                            style={{ maxWidth: '400px', width: '90%' }}
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="card-header">
-                                <h3 className="card-title">📥 Exportar para DOCX</h3>
-                            </div>
-
-                            <div className="input-group" style={{ marginBottom: 'var(--space-lg)' }}>
-                                <label>Nome do arquivo</label>
-                                <input
-                                    type="text"
-                                    className="input"
-                                    placeholder="Ex: questoes-5ano-portugues"
-                                    value={exportFileName}
-                                    onChange={(e) => setExportFileName(e.target.value)}
-                                />
-                            </div>
-
-                            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: 'var(--space-lg)' }}>
-                                {`Todas as ${questions.length} questões serão exportadas.`}
-                            </p>
-
-                            <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
-                                <button className="btn btn-primary" onClick={handleExport}>
-                                    📥 Exportar
-                                </button>
-                                <button className="btn btn-secondary" onClick={() => setShowExportModal(false)}>
-                                    Cancelar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Regenerate Image Modal */}
-                {showRegenerateModal && (
-                    <div
-                        className="loading-overlay"
-                        onClick={() => setShowRegenerateModal(false)}
-                        style={{ cursor: 'pointer' }}
-                    >
-                        <div
-                            className="card"
-                            style={{ maxWidth: '500px', width: '90%' }}
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="card-header">
-                                <h3 className="card-title">🖼️ Regenerar Imagem</h3>
-                            </div>
-
-                            <div className="input-group" style={{ marginBottom: 'var(--space-lg)' }}>
-                                <label>Instruções para correção</label>
-                                <textarea
-                                    className="input"
-                                    placeholder="Ex: Mostre exatamente 3 maçãs vermelhas em cima de uma mesa, não inclua números..."
-                                    value={regenerateInstructions}
-                                    onChange={(e) => setRegenerateInstructions(e.target.value)}
-                                    rows={4}
-                                    style={{ resize: 'vertical' }}
-                                />
-                            </div>
-
-                            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', marginBottom: 'var(--space-md)' }}>
-                                Descreva o que precisa ser corrigido ou melhorado na imagem.
-                            </p>
-
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)', cursor: 'pointer', fontSize: '0.875rem' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={syncDistractors}
-                                    onChange={(e) => setSyncDistractors(e.target.checked)}
-                                />
-                                🔄 Sincronizar distratores com a nova imagem
-                            </label>
-
-                            <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
-                                <button className="btn btn-primary" onClick={handleRegenerateImage}>
-                                    🔄 Regenerar
-                                </button>
-                                <button className="btn btn-secondary" onClick={() => setShowRegenerateModal(false)}>
-                                    Cancelar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
-        </Layout >
-    );
+
+            {/* Export Modal */}
+            <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Exportar para DOCX</DialogTitle>
+                        <DialogDescription>{`Todas as ${questions.length} questões serão exportadas.`}</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                        <Label htmlFor="exportName">Nome do arquivo</Label>
+                        <Input id="exportName" placeholder="Ex: questoes-5ano-portugues" value={exportFileName} onChange={(e) => setExportFileName(e.target.value)} />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowExportModal(false)}>Cancelar</Button>
+                        <Button onClick={handleExport}><Download className="size-4" />Exportar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Regenerate Image Modal */}
+            <Dialog open={showRegenerateModal} onOpenChange={setShowRegenerateModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Regenerar Imagem</DialogTitle>
+                        <DialogDescription>Descreva o que deve ser corrigido ou melhorado.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="regInstructions">Instruções</Label>
+                            <Textarea id="regInstructions" rows={4}
+                                placeholder="Ex: Mostre exatamente 3 maçãs vermelhas em cima de uma mesa, sem números visíveis."
+                                value={regenerateInstructions} onChange={(e) => setRegenerateInstructions(e.target.value)} />
+                        </div>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <Checkbox checked={syncDistractors} onCheckedChange={setSyncDistractors} />
+                            Sincronizar distratores com a nova imagem
+                        </label>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowRegenerateModal(false)}>Cancelar</Button>
+                        <Button onClick={handleRegenerateImage}>Regenerar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </Layout>
+    )
 }

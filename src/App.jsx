@@ -11,6 +11,7 @@ import QuestionGenerator from './pages/QuestionGenerator';
 import QuestionViewer from './pages/QuestionViewer';
 import ValidatedQuestions from './pages/ValidatedQuestions';
 import UserManagement from './pages/UserManagement';
+import GroupView from './pages/GroupView';
 
 import './index.css';
 
@@ -27,6 +28,7 @@ function App() {
           <Route path="/gerar-questoes" element={<PrivateRoute><QuestionGenerator /></PrivateRoute>} />
           <Route path="/questoes" element={<PrivateRoute><QuestionViewer /></PrivateRoute>} />
           <Route path="/questoes-validadas" element={<PrivateRoute><ValidatedQuestions /></PrivateRoute>} />
+          <Route path="/grupo/:id" element={<PrivateRoute><GroupView /></PrivateRoute>} />
           <Route path="/usuarios" element={<PrivateRoute adminOnly><UserManagement /></PrivateRoute>} />
 
           {/* Fallback */}

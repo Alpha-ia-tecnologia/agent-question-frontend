@@ -1,653 +1,263 @@
-import { useState, useEffect, useRef } from 'react';
-import { AGENT_AVATARS } from './AgentAvatars';
-import './GenerationProgress.css';
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Loader } from '@/components/ui/loader'
+import { cn } from '@/lib/utils'
+import {
+    Check, AlertCircle, Sparkles, Loader2, Search, FileText,
+    ShieldCheck, Image as ImageIcon, Eye, RefreshCw, ChevronDown,
+    Activity,
+} from 'lucide-react'
 
-const PHASE_CONFIG = {
-    routing: { label: 'Request Analysis', icon: '🔀' },
-    searcher: { label: 'Text Search Agent', icon: '📚' },
-    generator: { label: 'Question Generator Agent', icon: '✨' },
-    reviewer: { label: 'Quality Review Agent', icon: '📋' },
-    quality_gate: { label: 'Quality Gate', icon: '✅' },
-    __image_decision__: { label: 'Image Decision', icon: '🖼️' },
-    image_generator: { label: 'Image Generation Agent', icon: '🎨' },
-    image_validator: { label: 'Image Validation Agent', icon: '👁️' },
-    image_retry_inc: { label: 'Image Retry', icon: '🔄' },
-};
+const PHASE_META = {
+    routing: { label: 'Análise da Requisição', Icon: Activity },
+    searcher: { label: 'Busca de Textos', Icon: Search },
+    generator: { label: 'Geração de Questões', Icon: Sparkles },
+    reviewer: { label: 'Revisão de Qualidade', Icon: ShieldCheck },
+    quality_gate: { label: 'Portal de Qualidade', Icon: FileText },
+    __image_decision__: { label: 'Decisão de Imagem', Icon: ImageIcon },
+    image_generator: { label: 'Geração de Imagem', Icon: ImageIcon },
+    image_validator: { label: 'Validação de Imagem', Icon: Eye },
+    image_retry_inc: { label: 'Retry de Imagem', Icon: RefreshCw },
+}
 
-const AGENTS = [
-    { id: 'searcher', label: 'Pesquisador', icon: '📚', description: 'Busca textos', color: '#0ea5e9', bg: 'rgba(14,165,233,0.12)' },
-    { id: 'generator', label: 'Gerador', icon: '✨', description: 'Cria questões', color: '#a855f7', bg: 'rgba(168,85,247,0.12)' },
-    { id: 'reviewer', label: 'Revisor', icon: '📋', description: 'Revisa qualidade', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-    { id: 'image_generator', label: 'Artista', icon: '🎨', description: 'Gera imagens', color: '#ec4899', bg: 'rgba(236,72,153,0.12)' },
-    { id: 'image_validator', label: 'Validador', icon: '👁️', description: 'Valida imagens', color: '#22c55e', bg: 'rgba(34,197,94,0.12)' },
-];
+const PHASE_ORDER = [
+    'routing', 'searcher', 'generator', 'reviewer', 'quality_gate',
+    '__image_decision__', 'image_generator', 'image_validator',
+]
+
+function formatTime(secs) {
+    const m = Math.floor(secs / 60)
+    const s = Math.floor(secs % 60)
+    return m > 0 ? `${m}m ${s.toString().padStart(2, '0')}s` : `${s}s`
+}
 
 export default function GenerationProgress({ events, error }) {
-    const [timeline, setTimeline] = useState([]);
-    const [phases, setPhases] = useState({});
-    const [activePhase, setActivePhase] = useState(null);
-    const [elapsed, setElapsed] = useState(0);
-    const [finished, setFinished] = useState(false);
-    const [result, setResult] = useState(null);
-    const timelineEndRef = useRef(null);
-    const timerRef = useRef(null);
+    const [elapsed, setElapsed] = useState(0)
+    const [finished, setFinished] = useState(false)
+    const [result, setResult] = useState(null)
+    const [showDetails, setShowDetails] = useState(false)
+    const timerRef = useRef(null)
+    const logsEndRef = useRef(null)
 
-    // Start timer
-    useEffect(() => {
-        timerRef.current = setInterval(() => {
-            setElapsed(prev => prev + 0.1);
-        }, 100);
-        return () => clearInterval(timerRef.current);
-    }, []);
-
-    // Process events
-    useEffect(() => {
-        if (!events || events.length === 0) return;
-        const latest = events[events.length - 1];
-
-        switch (latest.type) {
-            case 'phase_start': {
-                const config = PHASE_CONFIG[latest.phase_id] || { label: latest.label, icon: latest.icon };
-                setPhases(prev => ({
-                    ...prev,
-                    [latest.phase_id]: { status: 'active', label: config.label, icon: config.icon, summary: '' }
-                }));
-                setActivePhase(latest.phase_id);
-                setTimeline(prev => [...prev, {
-                    ...latest,
-                    displayIcon: config.icon,
-                    displayLabel: config.label,
-                    category: 'phase_start'
-                }]);
-                break;
+    // Derived state: which phases exist, their status, last log message per phase
+    const { phases, activePhase, logs, retries } = useMemo(() => {
+        const ph = {}
+        const ls = []
+        let active = null
+        let retryCount = 0
+        for (const e of events || []) {
+            if (e.type === 'phase_start') {
+                const meta = PHASE_META[e.phase_id] || { label: e.label || e.phase_id, Icon: Activity }
+                ph[e.phase_id] = { status: 'active', label: meta.label, Icon: meta.Icon, message: '' }
+                active = e.phase_id
+            } else if (e.type === 'phase_end') {
+                if (ph[e.phase_id]) ph[e.phase_id] = { ...ph[e.phase_id], status: 'done', message: e.summary || ph[e.phase_id].message }
+                if (active === e.phase_id) active = null
+            } else if (e.type === 'log' || e.type === 'metric') {
+                const phaseId = e.phase_id
+                if (ph[phaseId]) ph[phaseId] = { ...ph[phaseId], message: e.message || e.label || '' }
+                ls.push({
+                    id: ls.length, phase: phaseId,
+                    icon: e.icon, text: e.message || e.label, detail: e.detail || e.value,
+                    type: e.type,
+                })
+            } else if (e.type === 'retry') {
+                retryCount = Math.max(retryCount, e.attempt || 0)
+                ls.push({ id: ls.length, phase: 'retry', icon: '🔄', text: `Retry #${e.attempt}: ${e.reason}`, type: 'retry' })
+            } else if (e.type === 'finished') {
+                // handled in effect
             }
-            case 'phase_end': {
-                setPhases(prev => ({
-                    ...prev,
-                    [latest.phase_id]: { ...prev[latest.phase_id], status: 'completed', summary: latest.summary }
-                }));
-                setTimeline(prev => [...prev, {
-                    ...latest,
-                    category: 'phase_end'
-                }]);
-                break;
-            }
-            case 'log':
-            case 'metric': {
-                setTimeline(prev => [...prev, {
-                    ...latest,
-                    category: latest.type
-                }]);
-                break;
-            }
-            case 'retry': {
-                setTimeline(prev => [...prev, {
-                    ...latest,
-                    category: 'retry'
-                }]);
-                break;
-            }
-            case 'finished': {
-                setFinished(true);
-                setResult(latest);
-                clearInterval(timerRef.current);
-                setTimeline(prev => [...prev, {
-                    ...latest,
-                    category: 'finished'
-                }]);
-                break;
-            }
-            case 'error': {
-                setFinished(true);
-                clearInterval(timerRef.current);
-                setTimeline(prev => [...prev, {
-                    ...latest,
-                    category: 'error'
-                }]);
-                break;
-            }
-            default:
-                break;
         }
-    }, [events]);
+        return { phases: ph, activePhase: active, logs: ls, retries: retryCount }
+    }, [events])
 
-    // Auto-scroll
+    // Timer
     useEffect(() => {
-        if (timelineEndRef.current) {
-            timelineEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        timerRef.current = setInterval(() => setElapsed(p => p + 0.1), 100)
+        return () => clearInterval(timerRef.current)
+    }, [])
+
+    // Process finished event
+    useEffect(() => {
+        if (!events?.length) return
+        const last = events[events.length - 1]
+        if (last.type === 'finished') {
+            setFinished(true)
+            setResult(last)
+            clearInterval(timerRef.current)
+        } else if (last.type === 'error') {
+            setFinished(true)
+            clearInterval(timerRef.current)
         }
-    }, [timeline]);
+    }, [events])
 
-    const formatTime = (secs) => {
-        const m = Math.floor(secs / 60);
-        const s = Math.floor(secs % 60);
-        return m > 0 ? `${m}m ${s}s` : `${s}s`;
-    };
+    // Auto-scroll logs
+    useEffect(() => {
+        if (showDetails && logsEndRef.current) {
+            logsEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
+        }
+    }, [logs, showDetails])
 
-    const phaseOrder = ['routing', 'searcher', 'generator', 'reviewer', 'quality_gate'];
+    // Derive ordered list of phases that have been seen
+    const orderedPhases = useMemo(() => {
+        const seen = Object.keys(phases)
+        const ordered = PHASE_ORDER.filter(id => seen.includes(id))
+        const extras = seen.filter(id => !PHASE_ORDER.includes(id))
+        return [...ordered, ...extras]
+    }, [phases])
+
+    const doneCount = orderedPhases.filter(id => phases[id].status === 'done').length
+    const totalCount = Math.max(orderedPhases.length, 1)
+    const progressPct = finished ? 100 : Math.round((doneCount / totalCount) * 100)
 
     return (
-        <div className="gen-progress">
-            {/* Header */}
-            <div className="gen-progress__header">
-                <div className="gen-progress__title">
-                    <span className="gen-progress__title-icon">🤖</span>
-                    <span>LangGraph Pipeline</span>
-                </div>
-                <div className="gen-progress__timer">
-                    <span className={`gen-progress__dot ${finished ? 'done' : 'running'}`}></span>
-                    {formatTime(elapsed)}
-                </div>
-            </div>
-
-            {/* Agent Pipeline Visualization */}
-            <AgentPipeline activePhase={activePhase} phases={phases} finished={finished} />
-
-            {/* Footer */}
-            {finished && result && (
-                <div className="gen-progress__result">
-                    <div className="result-icon">🎉</div>
-                    <div className="result-text">
-                        <strong>{result.questions_count} question(s) generated</strong>
-                        <span>Score: {result.quality_score ? `${(result.quality_score * 100).toFixed(0)}%` : 'N/A'} · Attempts: {result.retry_count}</span>
-                    </div>
-                </div>
-            )}
-
-            {error && (
-                <div className="gen-progress__error">
-                    <span>❌</span> Error: {error}
-                </div>
-            )}
-        </div>
-    );
-}
-
-function TimelineEntry({ entry }) {
-    switch (entry.category) {
-        case 'phase_start':
-            return (
-                <div className="tl-entry tl-phase-start">
-                    <div className="tl-time">{entry.timestamp || ''}</div>
-                    <div className="tl-dot phase-dot"></div>
-                    <div className="tl-content">
-                        <span className="tl-icon">{entry.displayIcon}</span>
-                        <strong>{entry.displayLabel}</strong>
-                        <span className="tl-badge">Started</span>
-                    </div>
-                </div>
-            );
-        case 'phase_end':
-            return (
-                <div className="tl-entry tl-phase-end">
-                    <div className="tl-time">{entry.timestamp || ''}</div>
-                    <div className="tl-dot phase-dot done"></div>
-                    <div className="tl-content">
-                        <span className="tl-icon">✅</span>
-                        <span className="tl-summary">{entry.summary}</span>
-                    </div>
-                </div>
-            );
-        case 'log':
-            return (
-                <div className="tl-entry tl-log">
-                    <div className="tl-time">{entry.timestamp || ''}</div>
-                    <div className="tl-dot log-dot"></div>
-                    <div className="tl-content">
-                        <span className="tl-icon">{entry.icon}</span>
-                        <span>{entry.message}</span>
-                        {entry.detail && <span className="tl-detail">{entry.detail}</span>}
-                    </div>
-                </div>
-            );
-        case 'metric':
-            return (
-                <div className="tl-entry tl-metric">
-                    <div className="tl-time">{entry.timestamp || ''}</div>
-                    <div className="tl-dot metric-dot"></div>
-                    <div className="tl-content">
-                        <span className="tl-icon">{entry.icon}</span>
-                        <strong>{entry.label}:</strong>
-                        <span className="tl-metric-value">{entry.value}</span>
-                    </div>
-                </div>
-            );
-        case 'retry':
-            return (
-                <div className="tl-entry tl-retry">
-                    <div className="tl-time">{entry.timestamp || ''}</div>
-                    <div className="tl-dot retry-dot"></div>
-                    <div className="tl-content">
-                        <span className="tl-icon">🔄</span>
-                        <span>Retry #{entry.attempt}: {entry.reason}</span>
-                    </div>
-                </div>
-            );
-        case 'finished':
-            return (
-                <div className="tl-entry tl-finished">
-                    <div className="tl-time">{entry.timestamp || ''}</div>
-                    <div className="tl-dot finished-dot"></div>
-                    <div className="tl-content">
-                        <span className="tl-icon">🏁</span>
-                        <strong>Pipeline completed in {entry.total_time}s</strong>
-                    </div>
-                </div>
-            );
-        case 'error':
-            return (
-                <div className="tl-entry tl-error-entry">
-                    <div className="tl-time">{entry.timestamp || ''}</div>
-                    <div className="tl-dot error-dot"></div>
-                    <div className="tl-content">
-                        <span className="tl-icon">❌</span>
-                        <span>{entry.message}</span>
-                    </div>
-                </div>
-            );
-        default:
-            return null;
-    }
-}
-
-function AgentPipeline({ activePhase, phases, finished }) {
-    // ──────────────────────────────────────────────────────────────
-    // CYCLE ENGINE: Self-driven infinite loop simulation
-    // Each agent activates sequentially, plays through activities,
-    // completes, then next agent starts. On full completion, cycle resets.
-    // ──────────────────────────────────────────────────────────────
-
-    // Cycle state machine
-    const [cycleCount, setCycleCount] = useState(0);
-    const [simAgents, setSimAgents] = useState(() =>
-        AGENTS.map(() => ({ status: 'pending', activityIdx: 0, elapsed: 0 }))
-    );
-    const [currentAgentIdx, setCurrentAgentIdx] = useState(-1); // -1 = pre-start
-    const [cyclePhase, setCyclePhase] = useState('starting'); // starting | running | restarting
-    const [chatMessages, setChatMessages] = useState([]);
-    const [thinkingDots, setThinkingDots] = useState('');
-
-    const chatEndRef = useRef(null);
-    const ACTIVITY_INTERVAL = 2200;   // ms between activity steps
-    const AGENT_COMPLETE_DELAY = 800; // ms pause after agent finishes
-    const CYCLE_RESTART_DELAY = 2500; // ms pause before cycle restarts
-
-    // Agent-specific activity messages
-    const AGENT_ACTIVITIES = {
-        searcher: [
-            { msg: 'Inicializando motor de busca', icon: '🔍', detail: 'Conectando ao RAG pipeline' },
-            { msg: 'Construindo query semântica', icon: '📡', detail: 'Embedding de habilidades BNCC' },
-            { msg: 'Escaneando fontes acadêmicas', icon: '🌐', detail: 'DuckDuckGo + bases locais' },
-            { msg: 'Ranqueando por relevância', icon: '📄', detail: 'Score de similaridade textual' },
-        ],
-        generator: [
-            { msg: 'Carregando modelo de linguagem', icon: '🧠', detail: 'GPT-4o / DeepSeek' },
-            { msg: 'Analisando taxonomia cognitiva', icon: '📐', detail: 'Tabela de habilidades EF09MA' },
-            { msg: 'Gerando enunciado e alternativas', icon: '✍️', detail: 'Chain-of-thought prompting' },
-            { msg: 'Calibrando distratores', icon: '🎯', detail: 'Erros conceituais plausíveis' },
-        ],
-        reviewer: [
-            { msg: 'Aplicando critérios SAEB', icon: '📋', detail: 'Checklist de 12 pontos' },
-            { msg: 'Avaliando alinhamento curricular', icon: '🔬', detail: 'BNCC + Matriz SEAMA' },
-            { msg: 'Testando plausibilidade', icon: '🧪', detail: 'Análise de distratores' },
-            { msg: 'Calculando score de qualidade', icon: '📊', detail: 'Nota final 0-100' },
-        ],
-        image_generator: [
-            { msg: 'Interpretando dados visuais', icon: '🎨', detail: 'Extração de contexto numérico' },
-            { msg: 'Construindo prompt de imagem', icon: '🖌️', detail: 'Descrição pedagógica detalhada' },
-            { msg: 'Gerando ilustração via DALL-E', icon: '⚡', detail: 'OpenAI Image API' },
-            { msg: 'Renderizando imagem final', icon: '🖼️', detail: 'Base64 encoding + validação' },
-        ],
-        image_validator: [
-            { msg: 'Carregando modelo de visão', icon: '👁️', detail: 'Gemini 2.0 Flash' },
-            { msg: 'Analisando coerência visual', icon: '🔍', detail: 'Cross-check com enunciado' },
-            { msg: 'Verificando dados numéricos', icon: '📏', detail: 'Validação de precisão' },
-            { msg: 'Emitindo veredito final', icon: '✅', detail: 'Aprovado / Reprovar + feedback' },
-        ],
-    };
-
-    const COMPLETION_SUMMARIES = {
-        searcher: 'Fontes relevantes encontradas e ranqueadas',
-        generator: 'Questão com 5 alternativas gerada com sucesso',
-        reviewer: 'Score de qualidade: 94/100 — Aprovado',
-        image_generator: 'Ilustração pedagógica gerada (1024×1024)',
-        image_validator: 'Imagem validada — coerência visual confirmada',
-    };
-
-    // Animated thinking dots
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setThinkingDots(prev => prev.length >= 3 ? '' : prev + '.');
-        }, 500);
-        return () => clearInterval(interval);
-    }, []);
-
-    // Per-agent elapsed timer (ticks every 100ms for active agents)
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setSimAgents(prev => prev.map(a =>
-                a.status === 'active' ? { ...a, elapsed: a.elapsed + 0.1 } : a
-            ));
-        }, 100);
-        return () => clearInterval(interval);
-    }, []);
-
-    // Auto-scroll chat
-    useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [chatMessages]);
-
-    // ── MAIN CYCLE ENGINE ──────────────────────────────────────
-    useEffect(() => {
-        // Pre-start: brief pause, then activate first agent
-        if (cyclePhase === 'starting') {
-            const t = setTimeout(() => {
-                setCurrentAgentIdx(0);
-                setSimAgents(prev => prev.map((a, i) =>
-                    i === 0 ? { ...a, status: 'active', activityIdx: 0, elapsed: 0 } : a
-                ));
-                // Add initial chat message
-                const agent = AGENTS[0];
-                const activities = AGENT_ACTIVITIES[agent.id];
-                if (activities?.[0]) {
-                    addChatMessage(agent, activities[0]);
-                }
-                setCyclePhase('running');
-            }, 800);
-            return () => clearTimeout(t);
-        }
-    }, [cyclePhase, cycleCount]); // cycleCount dependency ensures re-trigger on reset
-
-    // Activity stepper: advance activity index for active agent
-    useEffect(() => {
-        if (cyclePhase !== 'running' || currentAgentIdx < 0) return;
-
-        const interval = setInterval(() => {
-            setSimAgents(prev => {
-                const idx = currentAgentIdx;
-                if (idx < 0 || idx >= AGENTS.length) return prev;
-                const agent = AGENTS[idx];
-                const activities = AGENT_ACTIVITIES[agent.id] || [];
-                const current = prev[idx];
-
-                if (current.status !== 'active') return prev;
-
-                const nextActIdx = current.activityIdx + 1;
-
-                if (nextActIdx < activities.length) {
-                    // Advance to next activity
-                    addChatMessage(agent, activities[nextActIdx]);
-                    return prev.map((a, i) =>
-                        i === idx ? { ...a, activityIdx: nextActIdx } : a
-                    );
-                } else {
-                    // All activities done — mark agent as completed
-                    clearInterval(interval);
-                    addChatMessage(agent, {
-                        msg: COMPLETION_SUMMARIES[agent.id] || 'Concluído',
-                        icon: '✅',
-                        detail: 'Etapa finalizada'
-                    });
-
-                    const updated = prev.map((a, i) =>
-                        i === idx ? { ...a, status: 'completed' } : a
-                    );
-
-                    // After brief pause, activate next agent or finish cycle
-                    setTimeout(() => {
-                        const nextIdx = idx + 1;
-                        if (nextIdx < AGENTS.length) {
-                            // Activate next agent
-                            setCurrentAgentIdx(nextIdx);
-                            setSimAgents(p => p.map((a, i) =>
-                                i === nextIdx ? { ...a, status: 'active', activityIdx: 0, elapsed: 0 } : a
-                            ));
-                            const nextAgent = AGENTS[nextIdx];
-                            const nextActivities = AGENT_ACTIVITIES[nextAgent.id];
-                            if (nextActivities?.[0]) {
-                                addChatMessage(nextAgent, nextActivities[0]);
-                            }
-                        } else {
-                            // All agents completed — enter restart phase
-                            setCyclePhase('restarting');
-                            setTimeout(() => {
-                                // Reset everything for next cycle
-                                setCycleCount(c => c + 1);
-                                setCurrentAgentIdx(-1);
-                                setSimAgents(AGENTS.map(() => ({
-                                    status: 'pending', activityIdx: 0, elapsed: 0
-                                })));
-                                setChatMessages([]);
-                                setCyclePhase('starting');
-                            }, CYCLE_RESTART_DELAY);
-                        }
-                    }, AGENT_COMPLETE_DELAY);
-
-                    return updated;
-                }
-            });
-        }, ACTIVITY_INTERVAL);
-
-        return () => clearInterval(interval);
-    }, [cyclePhase, currentAgentIdx]);
-
-    function addChatMessage(agent, activity) {
-        setChatMessages(prev => [...prev.slice(-10), {
-            agentId: agent.id,
-            agentLabel: agent.label,
-            agentIcon: agent.icon,
-            ...activity,
-            timestamp: new Date().toLocaleTimeString('pt-BR', {
-                hour: '2-digit', minute: '2-digit', second: '2-digit'
-            })
-        }]);
-    }
-
-    const formatAgentTime = (secs) => {
-        if (!secs) return '0s';
-        return secs < 60 ? `${Math.floor(secs)}s` : `${Math.floor(secs / 60)}m${Math.floor(secs % 60)}s`;
-    };
-
-    // Computed values
-    const completedCount = simAgents.filter(a => a.status === 'completed').length;
-    const globalProgress = cyclePhase === 'restarting' ? 100 : (completedCount / AGENTS.length) * 100;
-    const activeAgent = currentAgentIdx >= 0 ? AGENTS[currentAgentIdx] : null;
-
-    return (
-        <div className="agent-sim">
-            {/* Neural Network Background */}
-            <div className="agent-sim__neural-bg" />
-
-            {/* Cycle Counter Badge */}
-            {cycleCount > 0 && (
-                <div className="agent-sim__cycle-badge">
-                    🔄 Ciclo #{cycleCount + 1}
-                </div>
-            )}
-
-            {/* ── Central Specialist Avatar ──────────────────────────── */}
-            <div className="agent-sim__specialist">
-                {/* Orbiting Agent Steps - Mini avatars */}
-                <div className="agent-sim__orbit">
-                    {AGENTS.map((agent, i) => {
-                        const sim = simAgents[i];
-                        const isActive = i === currentAgentIdx;
-                        const isDone = sim.status === 'completed';
-                        const OrbitAvatar = AGENT_AVATARS[agent.id];
-                        return (
-                            <div
-                                key={agent.id}
-                                className={`agent-sim__orbit-dot ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`}
-                                style={{
-                                    '--dot-color': agent.color,
-                                    '--dot-angle': `${(i / AGENTS.length) * 360}deg`
-                                }}
-                                title={agent.label}
-                            >
-                                {isDone ? '✓' : OrbitAvatar ? <OrbitAvatar size={22} active={isActive} /> : (i + 1)}
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/40 to-background p-4">
+            <Card className="w-full max-w-2xl shadow-xl">
+                <CardHeader>
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className={cn(
+                                'flex items-center justify-center size-10 rounded-xl shrink-0',
+                                finished && !error
+                                    ? 'bg-emerald-500/10 text-emerald-600'
+                                    : error
+                                        ? 'bg-destructive/10 text-destructive'
+                                        : 'bg-primary/10 text-primary'
+                            )}>
+                                {finished && !error ? <Check className="size-5" />
+                                    : error ? <AlertCircle className="size-5" />
+                                    : <Loader2 className="size-5 animate-spin" />}
                             </div>
-                        );
-                    })}
-                </div>
-
-                {/* Main Avatar Circle */}
-                <div
-                    className={`agent-sim__avatar-main ${activeAgent ? 'active' : ''} ${cyclePhase === 'restarting' ? 'restarting' : ''}`}
-                    style={{
-                        '--agent-color': activeAgent?.color || '#6366f1',
-                        '--agent-bg': activeAgent?.bg || 'rgba(99,102,241,0.12)',
-                    }}
-                >
-                    {/* Pulse rings */}
-                    {activeAgent && (
-                        <>
-                            <div className="agent-sim__avatar-pulse" />
-                            <div className="agent-sim__avatar-pulse agent-sim__avatar-pulse--2" />
-                        </>
-                    )}
-
-                    {/* SVG Avatar with transition */}
-                    <div className="agent-sim__avatar-face" key={activeAgent?.id || 'idle'}>
-                        {(() => {
-                            const AvatarComponent = activeAgent ? AGENT_AVATARS[activeAgent.id] : null;
-                            return AvatarComponent
-                                ? <AvatarComponent size={76} active={true} />
-                                : <span style={{ fontSize: '2.4rem' }}>🤖</span>;
-                        })()}
-                    </div>
-
-                    {/* Brain wave bars */}
-                    {activeAgent && (
-                        <div className="agent-sim__brain-wave">
-                            <span /><span /><span /><span /><span />
+                            <div>
+                                <CardTitle>
+                                    {error ? 'Erro na geração'
+                                        : finished ? 'Geração concluída'
+                                        : 'Gerando questões…'}
+                                </CardTitle>
+                                <CardDescription className="flex items-center gap-2 mt-0.5">
+                                    <span className={cn(
+                                        'inline-block size-1.5 rounded-full',
+                                        finished ? 'bg-emerald-500' : 'bg-primary animate-pulse'
+                                    )} />
+                                    <span className="tabular-nums">{formatTime(elapsed)}</span>
+                                    {retries > 0 && <Badge variant="outline" className="text-[10px]">{retries} retry(s)</Badge>}
+                                </CardDescription>
+                            </div>
                         </div>
-                    )}
-                </div>
-
-                {/* Agent Name & Role */}
-                <div className="agent-sim__agent-info" key={activeAgent?.id || 'idle'}>
-                    <span className="agent-sim__agent-name" style={{ color: activeAgent?.color || '#94a3b8' }}>
-                        {activeAgent?.label || 'Inicializando'}
-                    </span>
-                    <span className="agent-sim__agent-role">
-                        {activeAgent?.description || 'Preparando pipeline...'}
-                    </span>
-                </div>
-            </div>
-
-            {/* ── Activity Panel ──────────────────────────────────── */}
-            {activeAgent && (() => {
-                const activities = AGENT_ACTIVITIES[activeAgent.id] || [];
-                const sim = simAgents[currentAgentIdx];
-                const currentActivity = activities[sim?.activityIdx] || {};
-                const agentProgress = sim?.status === 'completed' ? 100
-                    : sim?.status === 'active' ? ((sim.activityIdx + 1) / activities.length) * 100
-                        : 0;
-
-                return (
-                    <div className="agent-sim__activity-panel" style={{ '--agent-color': activeAgent.color }}>
-                        {sim?.status === 'active' && currentActivity.msg && (
-                            <div className="agent-sim__activity-row">
-                                <span className="agent-sim__activity-icon">{currentActivity.icon}</span>
-                                <div className="agent-sim__activity-text">
-                                    <span className="agent-sim__activity-msg">{currentActivity.msg}</span>
-                                    <span className="agent-sim__activity-detail">{currentActivity.detail}</span>
-                                </div>
-                                <span className="agent-sim__activity-badge">
-                                    {sim.activityIdx + 1}/{activities.length}
-                                </span>
-                            </div>
+                        {finished && result?.questions_count != null && (
+                            <Badge variant="secondary" className="shrink-0">
+                                {result.questions_count} questão(ões)
+                            </Badge>
                         )}
-                        {sim?.status === 'completed' && (
-                            <div className="agent-sim__activity-row agent-sim__activity-row--done">
-                                <span className="agent-sim__activity-icon">✅</span>
-                                <span className="agent-sim__activity-msg">{COMPLETION_SUMMARIES[activeAgent.id]}</span>
-                            </div>
-                        )}
-                        <div className="agent-sim__progress-track">
-                            <div
-                                className={`agent-sim__progress-indicator ${sim?.status === 'completed' ? 'done' : ''}`}
-                                style={{
-                                    transform: `translateX(-${100 - agentProgress}%)`,
-                                    background: activeAgent.color
-                                }}
-                            />
-                        </div>
                     </div>
-                );
-            })()}
+                </CardHeader>
 
-            {/* ── Pipeline Progress Bar ──────────────────────────── */}
-            <div className="agent-sim__global-progress">
-                <div className="agent-sim__global-progress-track">
-                    <div
-                        className="agent-sim__global-progress-fill"
-                        style={{ transform: `translateX(-${100 - globalProgress}%)` }}
-                    />
-                </div>
-                <span className="agent-sim__global-label">
-                    {cyclePhase === 'restarting' ? '🔄 Reset' : `${completedCount}/${AGENTS.length}`}
-                </span>
-            </div>
+                <CardContent className="space-y-4">
+                    <Progress value={progressPct} className="h-1.5" />
 
-            {/* ── Agent Chat Feed ────────────────────────────────── */}
-            {chatMessages.length > 0 && (
-                <div className="agent-sim__chat">
-                    <div className="agent-sim__chat-title">💬 Feed de Atividade</div>
-                    <div className="agent-sim__chat-messages">
-                        {chatMessages.map((msg, i) => {
-                            const msgAgent = AGENTS.find(a => a.id === msg.agentId);
-                            return (
-                                <div key={`${cycleCount}-${i}`} className="agent-sim__chat-msg">
-                                    <span
-                                        className="agent-sim__chat-avatar"
-                                        style={{ background: msgAgent?.bg, borderColor: msgAgent?.color }}
+                    <div className="space-y-1.5">
+                        {orderedPhases.length === 0 ? (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                                <Loader variant="dots" />
+                                <span>Inicializando pipeline…</span>
+                            </div>
+                        ) : (
+                            orderedPhases.map(id => {
+                                const p = phases[id]
+                                const isActive = activePhase === id && !finished
+                                const isDone = p.status === 'done'
+                                return (
+                                    <div
+                                        key={id}
+                                        className={cn(
+                                            'flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
+                                            isActive && 'bg-primary/5 border border-primary/20',
+                                            isDone && 'opacity-70',
+                                            !isActive && !isDone && 'opacity-50'
+                                        )}
                                     >
-                                        {(() => {
-                                            const ChatAvatar = AGENT_AVATARS[msg.agentId];
-                                            return ChatAvatar ? <ChatAvatar size={24} active={false} /> : msg.agentIcon;
-                                        })()}
-                                    </span>
-                                    <div className="agent-sim__chat-bubble">
-                                        <div className="agent-sim__chat-header">
-                                            <strong style={{ color: msgAgent?.color }}>{msg.agentLabel}</strong>
-                                            <span className="agent-sim__chat-time">{msg.timestamp}</span>
+                                        <div className={cn(
+                                            'flex items-center justify-center size-7 rounded-md shrink-0',
+                                            isDone ? 'bg-emerald-500/15 text-emerald-600'
+                                                : isActive ? 'bg-primary/15 text-primary'
+                                                : 'bg-muted text-muted-foreground'
+                                        )}>
+                                            {isDone ? <Check className="size-3.5" />
+                                                : isActive ? <Loader2 className="size-3.5 animate-spin" />
+                                                : <p.Icon className="size-3.5" />}
                                         </div>
-                                        <span className="agent-sim__chat-text">{msg.icon} {msg.msg}</span>
-                                        {msg.detail && <span className="agent-sim__chat-detail">{msg.detail}</span>}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-sm font-medium leading-tight">{p.label}</div>
+                                            {p.message && (
+                                                <div className="text-[11px] text-muted-foreground truncate mt-0.5">{p.message}</div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                        <div ref={chatEndRef} />
+                                )
+                            })
+                        )}
                     </div>
-                </div>
-            )}
 
-            {/* ── Pipeline Status Bar ────────────────────────────── */}
-            <div className="agent-sim__status-bar">
-                <div className="agent-sim__status-indicator">
-                    {cyclePhase === 'restarting' ? (
-                        <>
-                            <span className="status-dot status-dot--done" />
-                            <span>🔄 Ciclo completo — reiniciando...</span>
-                        </>
-                    ) : activeAgent ? (
-                        <>
-                            <span className="status-dot status-dot--running" />
-                            <span>Executando: <strong style={{ color: activeAgent.color }}>{activeAgent.label}</strong></span>
-                        </>
-                    ) : (
-                        <>
-                            <span className="status-dot status-dot--idle" />
-                            <span>Inicializando pipeline...</span>
-                        </>
+                    {error && (
+                        <Alert variant="destructive">
+                            <AlertCircle className="size-4" />
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
                     )}
-                </div>
-                <div className="agent-sim__agents-count">
-                    {completedCount}/{AGENTS.length} agentes
-                </div>
-            </div>
+
+                    {finished && !error && result && (
+                        <Alert className="border-emerald-500/30 bg-emerald-500/5">
+                            <Check className="size-4 text-emerald-600" />
+                            <AlertDescription className="text-sm">
+                                <div className="font-medium">{result.questions_count} questão(ões) gerada(s)</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                    {result.quality_score != null && `Score ${(result.quality_score * 100).toFixed(0)}%`}
+                                    {result.total_time != null && ` • ${result.total_time.toFixed?.(1) || result.total_time}s`}
+                                    {result.retry_count > 0 && ` • ${result.retry_count} retry(s)`}
+                                </div>
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
+                    {logs.length > 0 && (
+                        <div className="pt-1">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-between text-xs text-muted-foreground"
+                                onClick={() => setShowDetails(s => !s)}
+                                type="button"
+                            >
+                                <span>Detalhes do pipeline ({logs.length})</span>
+                                <ChevronDown className={cn('size-3.5 transition-transform', showDetails && 'rotate-180')} />
+                            </Button>
+                            {showDetails && (
+                                <div className="mt-2 max-h-48 overflow-y-auto rounded-md border border-border bg-muted/30 p-2 space-y-1 font-mono text-[11px]">
+                                    {logs.map(l => (
+                                        <div key={l.id} className="flex items-start gap-2 py-0.5">
+                                            <span className="text-muted-foreground w-4 shrink-0">{l.icon || '•'}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <span className={cn(
+                                                    l.type === 'retry' && 'text-amber-600',
+                                                    l.type === 'metric' && 'text-primary'
+                                                )}>
+                                                    {l.text}
+                                                </span>
+                                                {l.detail && <span className="text-muted-foreground ml-2">— {l.detail}</span>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div ref={logsEndRef} />
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </div>
-    );
+    )
 }

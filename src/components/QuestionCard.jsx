@@ -1,72 +1,66 @@
-import { useState, useEffect, useRef } from 'react';
-import { useQuestionImage } from '../hooks/useQuestionImage';
-import { useQuestionEdit } from '../hooks/useQuestionEdit';
-import QuestionHeader from './question/QuestionHeader';
-import QuestionImage from './question/QuestionImage';
-import AlternativesList from './question/AlternativesList';
-import QuestionActions from './question/QuestionActions';
-import { questionsApi } from '../api/api';
+import { useState, useEffect, useRef } from 'react'
+import { useQuestionImage } from '../hooks/useQuestionImage'
+import { useQuestionEdit } from '../hooks/useQuestionEdit'
+import QuestionHeader from './question/QuestionHeader'
+import QuestionImage from './question/QuestionImage'
+import AlternativesList from './question/AlternativesList'
+import QuestionActions from './question/QuestionActions'
+import { questionsApi } from '../api/api'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AlertTriangle, ExternalLink, Lightbulb, NotebookPen, Loader2, Check } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
-/**
- * Card de questão modular e expansível
- */
 export default function QuestionCard({
     question,
     onGenerateImage,
     onRegenerateImage,
     onUpdateQuestion,
     onToggleValidation,
-    isGeneratingImage
+    isGeneratingImage,
 }) {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [observation, setObservation] = useState(question.observation || '');
-    const [saveStatus, setSaveStatus] = useState(''); // '', 'saving', 'saved'
-    const debounceRef = useRef(null);
+    const [isExpanded, setIsExpanded] = useState(false)
+    const [observation, setObservation] = useState(question.observation || '')
+    const [saveStatus, setSaveStatus] = useState('')
+    const debounceRef = useRef(null)
 
-    const { imageSrc, hasImage } = useQuestionImage(question);
+    const { imageSrc, hasImage } = useQuestionImage(question)
     const {
-        isEditing,
-        editedQuestion,
-        startEditing,
-        handleSaveEdits,
-        handleCancelEdits,
-        handleAlternativeChange,
-        handleDistractorChange,
-        updateField,
-    } = useQuestionEdit(question, onUpdateQuestion);
+        isEditing, editedQuestion, startEditing, handleSaveEdits, handleCancelEdits,
+        handleAlternativeChange, handleDistractorChange, updateField,
+    } = useQuestionEdit(question, onUpdateQuestion)
 
-    // Sync observation when question data changes externally
-    useEffect(() => {
-        setObservation(question.observation || '');
-    }, [question.observation]);
+    useEffect(() => { setObservation(question.observation || '') }, [question.observation])
 
     const handleObservationChange = (e) => {
-        const value = e.target.value;
-        setObservation(value);
-        setSaveStatus('');
-
-        if (debounceRef.current) clearTimeout(debounceRef.current);
+        const value = e.target.value
+        setObservation(value)
+        setSaveStatus('')
+        if (debounceRef.current) clearTimeout(debounceRef.current)
         debounceRef.current = setTimeout(async () => {
             try {
-                setSaveStatus('saving');
-                await questionsApi.updateObservation(question.id, value || null);
-                setSaveStatus('saved');
-                setTimeout(() => setSaveStatus(''), 2000);
+                setSaveStatus('saving')
+                await questionsApi.updateObservation(question.id, value || null)
+                setSaveStatus('saved')
+                setTimeout(() => setSaveStatus(''), 2000)
             } catch (err) {
-                console.error('Erro ao salvar observação:', err);
-                setSaveStatus('');
+                console.error('Erro ao salvar observação:', err)
+                setSaveStatus('')
             }
-        }, 800);
-    };
+        }, 800)
+    }
 
     const handleGenerateImage = async () => {
-        if (onGenerateImage) {
-            await onGenerateImage(question);
-        }
-    };
+        if (onGenerateImage) await onGenerateImage(question)
+    }
 
     return (
-        <div className={`question-card ${question.validated ? 'validated' : ''}`}>
+        <div className={cn(
+            'rounded-lg border bg-card overflow-hidden transition-colors',
+            question.validated ? 'border-emerald-500/30' : 'border-border'
+        )}>
             <QuestionHeader
                 questionNumber={question.question_number}
                 skillId={question.id_skill}
@@ -77,83 +71,55 @@ export default function QuestionCard({
 
             {isExpanded && (
                 <>
-                    <div className="question-body">
-                        {/* Texto de apoio */}
-                        <div className="question-text">
+                    <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
+                        {/* Título + Texto de apoio */}
+                        <div className="space-y-2">
                             {isEditing ? (
                                 <>
-                                    <input
-                                        type="text"
-                                        className="input input-title"
-                                        value={editedQuestion.title}
-                                        onChange={(e) => updateField('title', e.target.value)}
-                                        placeholder="Título"
-                                    />
-                                    <textarea
-                                        className="input input-text"
-                                        value={editedQuestion.text}
-                                        onChange={(e) => updateField('text', e.target.value)}
-                                        rows={5}
-                                        placeholder="Texto de apoio"
-                                    />
+                                    <Input value={editedQuestion.title} onChange={(e) => updateField('title', e.target.value)} placeholder="Título" />
+                                    <Textarea rows={5} value={editedQuestion.text} onChange={(e) => updateField('text', e.target.value)} placeholder="Texto de apoio" />
                                 </>
                             ) : (
                                 <>
-                                    <div className="question-text-title">{question.title}</div>
-                                    <div className="question-text-content">{question.text}</div>
+                                    {question.title && <h3 className="text-sm font-semibold">{question.title}</h3>}
+                                    {question.text && <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{question.text}</p>}
                                 </>
                             )}
-                            <div className="question-text-source">
-                                {question.source_author && (
-                                    <span className="source-author">
-                                        Autor: {question.source_author} |
-                                    </span>
-                                )}
-                                {' '}{question.source}
-                                {question.source_url && (
-                                    <a
-                                        href={question.source_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="source-link"
-                                    >
-                                        🔗 Ver fonte original
-                                    </a>
-                                )}
-                            </div>
+                            {(question.source || question.source_author) && (
+                                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground pt-1">
+                                    {question.source_author && <span>Autor: <span className="font-medium text-foreground/70">{question.source_author}</span></span>}
+                                    {question.source && <span>• {question.source}</span>}
+                                    {question.source_url && (
+                                        <a href={question.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+                                            <ExternalLink className="size-3" /> fonte
+                                        </a>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <QuestionImage imageSrc={imageSrc} />
 
-                        {/* Alerta: imagem falhou na validação automática */}
                         {question.needs_manual_image && !hasImage && (
-                            <div className="image-validation-alert">
-                                <span className="alert-icon">⚠️</span>
-                                <div className="alert-content">
-                                    <strong>Imagem não validada automaticamente</strong>
-                                    <p>A validação automática falhou após 2 tentativas. Gere a imagem manualmente.</p>
+                            <Alert variant="default" className="border-amber-500/30 bg-amber-500/5">
+                                <AlertTriangle className="size-4 text-amber-600" />
+                                <AlertDescription>
+                                    <div className="font-medium text-amber-900 dark:text-amber-200">Imagem não validada automaticamente</div>
+                                    <p className="mt-0.5 text-xs">Gere a imagem manualmente.</p>
                                     {question.image_validation_issues?.length > 0 && (
-                                        <ul className="validation-issues">
-                                            {question.image_validation_issues.map((issue, i) => (
-                                                <li key={i}>{issue}</li>
-                                            ))}
+                                        <ul className="mt-1 list-disc list-inside text-xs text-muted-foreground">
+                                            {question.image_validation_issues.map((issue, i) => <li key={i}>{issue}</li>)}
                                         </ul>
                                     )}
-                                </div>
-                            </div>
+                                </AlertDescription>
+                            </Alert>
                         )}
 
                         {/* Enunciado */}
                         {isEditing ? (
-                            <textarea
-                                className="input input-statement"
-                                value={editedQuestion.question_statement}
-                                onChange={(e) => updateField('question_statement', e.target.value)}
-                                rows={3}
-                                placeholder="Enunciado da questão"
-                            />
+                            <Textarea rows={3} value={editedQuestion.question_statement} onChange={(e) => updateField('question_statement', e.target.value)} placeholder="Enunciado" />
                         ) : (
-                            <p className="question-statement">{question.question_statement}</p>
+                            <p className="text-sm font-medium leading-relaxed">{question.question_statement}</p>
                         )}
 
                         <AlternativesList
@@ -165,45 +131,44 @@ export default function QuestionCard({
                         />
 
                         {/* Explicação */}
-                        <div className="question-explanation">
-                            <div className="question-explanation-title">💡 Explicação</div>
+                        <div className="rounded-lg border border-border bg-muted/30 p-3">
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground/80 mb-1.5">
+                                <Lightbulb className="size-3.5 text-amber-500" />
+                                <span>Explicação</span>
+                            </div>
                             {isEditing ? (
-                                <textarea
-                                    className="input input-explanation"
-                                    value={editedQuestion.explanation_question}
-                                    onChange={(e) => updateField('explanation_question', e.target.value)}
-                                    rows={3}
-                                    placeholder="Explicação"
-                                />
+                                <Textarea rows={3} value={editedQuestion.explanation_question} onChange={(e) => updateField('explanation_question', e.target.value)} placeholder="Explicação" className="text-sm" />
                             ) : (
-                                <p className="question-explanation-text">{question.explanation_question}</p>
+                                <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{question.explanation_question}</p>
                             )}
                         </div>
 
                         {/* Tags */}
-                        <div className="question-tags">
-                            <span className="tag tag-skill">{question.skill}</span>
-                            <span className="tag tag-proficiency">{question.proficiency_level}</span>
+                        <div className="flex flex-wrap gap-1.5">
+                            {question.skill && <Badge variant="secondary" className="max-w-full truncate">{question.skill}</Badge>}
+                            {question.proficiency_level && <Badge variant="outline">{question.proficiency_level}</Badge>}
+                            {question.grade && <Badge variant="outline">{question.grade}</Badge>}
                         </div>
 
                         {/* Observação */}
-                        <div className="question-observation">
-                            <div className="question-observation-header">
-                                <span className="question-observation-title">📝 Observação</span>
+                        <div className="rounded-lg border border-border bg-background p-3">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground/80">
+                                    <NotebookPen className="size-3.5" />
+                                    <span>Observação</span>
+                                </div>
                                 {saveStatus === 'saving' && (
-                                    <span className="observation-status saving">Salvando...</span>
+                                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                        <Loader2 className="size-3 animate-spin" /> salvando…
+                                    </span>
                                 )}
                                 {saveStatus === 'saved' && (
-                                    <span className="observation-status saved">✓ Salvo</span>
+                                    <span className="flex items-center gap-1 text-[10px] text-emerald-600">
+                                        <Check className="size-3" /> salvo
+                                    </span>
                                 )}
                             </div>
-                            <textarea
-                                className="input observation-textarea"
-                                value={observation}
-                                onChange={handleObservationChange}
-                                rows={2}
-                                placeholder="Adicione uma observação sobre esta questão..."
-                            />
+                            <Textarea rows={2} value={observation} onChange={handleObservationChange} placeholder="Adicione uma observação…" className="text-sm" />
                         </div>
                     </div>
 
@@ -222,6 +187,5 @@ export default function QuestionCard({
                 </>
             )}
         </div>
-    );
+    )
 }
-
