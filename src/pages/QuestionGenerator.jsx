@@ -394,7 +394,7 @@ export default function QuestionGenerator() {
                                     <Label htmlFor="contextTheme">Tema ou assunto</Label>
                                     <Input
                                         id="contextTheme"
-                                        placeholder='Ex: "Poesia Terra das Palmeiras", "Semana da Água"…'
+                                        placeholder='Ex: "Canção do Exílio", "Semana da Água"…'
                                         value={form.contextTheme}
                                         onChange={(e) => setField('contextTheme', e.target.value)}
                                     />
