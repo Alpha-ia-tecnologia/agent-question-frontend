@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertTriangle, ExternalLink, Lightbulb, NotebookPen, Loader2, Check } from 'lucide-react'
+import { AlertTriangle, ExternalLink, Lightbulb, NotebookPen, Loader2, Check, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export default function QuestionCard({
@@ -168,7 +168,20 @@ export default function QuestionCard({
                                     </span>
                                 )}
                             </div>
-                            <Textarea rows={2} value={observation} onChange={handleObservationChange} placeholder="Adicione uma observação…" className="text-sm" />
+                            <Textarea
+                                rows={2}
+                                value={observation}
+                                onChange={handleObservationChange}
+                                placeholder="Ex.: 'Faltou citar o tema no texto-base', 'Distratores muito óbvios'…"
+                                className="text-sm"
+                            />
+                            <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-muted-foreground leading-snug">
+                                <Sparkles className="size-3 shrink-0 mt-0.5 text-primary/70" />
+                                <span>
+                                    Esta observação será usada no <span className="font-medium text-foreground/80">aprendizado do modelo</span>:
+                                    em próximas gerações da mesma habilidade, série e componente, o agente e o revisor recebem este feedback como lição aprendida para evitar o mesmo problema.
+                                </span>
+                            </p>
                         </div>
                     </div>
 
