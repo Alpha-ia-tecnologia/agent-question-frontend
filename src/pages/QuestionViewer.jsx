@@ -113,7 +113,9 @@ export default function QuestionViewer() {
         setIsGeneratingImage(true); setError('')
         try {
             const response = await agentApi.generateImage(question)
-            setQuestions(prev => prev.map(q => q.id === question.id ? { ...q, image_base64: response.image_base64, imageFromServer: response.image_url || null } : q))
+            setQuestions(prev => prev.map(q => q.id === question.id
+                ? { ...q, image_base64: response.image_base64, image_url: response.image_url || q.image_url }
+                : q))
             setSuccess('Imagem gerada e salva com sucesso!')
             return response.image_base64
         } catch (err) { setError('Erro ao gerar imagem: ' + err.message); return null }
