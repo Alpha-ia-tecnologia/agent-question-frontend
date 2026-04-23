@@ -3,9 +3,11 @@ import { useMemo } from 'react'
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5050'
 
 function resolveUrl(url) {
-    if (!url) return null
-    if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url
-    return `${API_BASE.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`
+    if (!url || typeof url !== 'string') return null
+    const trimmed = url.trim()
+    if (!trimmed || trimmed === '/' || trimmed.endsWith('/')) return null
+    if (/^https?:\/\//i.test(trimmed) || trimmed.startsWith('data:')) return trimmed
+    return `${API_BASE.replace(/\/$/, '')}${trimmed.startsWith('/') ? trimmed : `/${trimmed}`}`
 }
 
 /**
