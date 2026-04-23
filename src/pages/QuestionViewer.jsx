@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog'
 import {
     AlertCircle, CheckCircle2, X, Sparkles, Download, Search, FileText,
+    GraduationCap, BookOpen,
 } from 'lucide-react'
 
 export default function QuestionViewer() {
@@ -32,6 +33,8 @@ export default function QuestionViewer() {
     const [isExporting, setIsExporting] = useState(false)
     const [exportFileName, setExportFileName] = useState('')
     const [showExportModal, setShowExportModal] = useState(false)
+    const [exportVersion, setExportVersion] = useState('teacher')
+    const [selectedExportIds, setSelectedExportIds] = useState(() => new Set())
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
     const [validationFilter, setValidationFilter] = useState('all')
@@ -173,11 +176,31 @@ export default function QuestionViewer() {
         setSuccess('Questão atualizada!')
     }
 
+    const openExportModal = () => {
+        setSelectedExportIds(new Set(questions.map(q => q.id)))
+        setExportVersion('teacher')
+        setShowExportModal(true)
+    }
+
+    const toggleExportId = (id) => {
+        setSelectedExportIds(prev => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id); else next.add(id)
+            return next
+        })
+    }
+
+    const toggleExportAll = () => {
+        setSelectedExportIds(prev => prev.size === questions.length ? new Set() : new Set(questions.map(q => q.id)))
+    }
+
     const handleExport = async () => {
         if (!exportFileName.trim()) { setError('Digite um nome para o arquivo'); return }
+        if (selectedExportIds.size === 0) { setError('Selecione ao menos uma questão'); return }
         setIsExporting(true); setError('')
         try {
-            const formatted = questions.map(q => ({
+            const toExport = questions.filter(q => selectedExportIds.has(q.id))
+            const formatted = toExport.map(q => ({
                 question_number: q.question_number, id_skill: q.id_skill, skill: q.skill,
                 proficiency_level: q.proficiency_level, proficiency_description: q.proficiency_description,
                 title: q.title, text: q.text, source: q.source,
@@ -186,9 +209,9 @@ export default function QuestionViewer() {
                 ...(q.image_base64 && { image_base64: q.image_base64 }),
                 ...(!q.image_base64 && (q.image_url || q.imageFromServer) && { image_url: q.image_url || q.imageFromServer }),
             }))
-            await docApi.generateDocx(formatted, exportFileName)
+            await docApi.generateDocx(formatted, exportFileName, exportVersion)
             await docApi.downloadDocx(exportFileName)
-            setSuccess('Documento exportado!')
+            setSuccess(`Documento exportado (versão ${exportVersion === 'teacher' ? 'do professor' : 'do aluno'})!`)
             setShowExportModal(false); setExportFileName('')
         } catch (err) { setError('Erro ao exportar: ' + err.message) }
         finally { setIsExporting(false) }
@@ -207,7 +230,7 @@ export default function QuestionViewer() {
                     </div>
                     <div className="flex gap-2">
                         <Button onClick={() => navigate('/gerar-questoes')}><Sparkles className="size-4" />Gerar Mais</Button>
-                        <Button variant="secondary" disabled={questions.length === 0} onClick={() => setShowExportModal(true)}><Download className="size-4" />Exportar</Button>
+                        <Button variant="secondary" disabled={questions.length === 0} onClick={openExportModal}><Download className="size-4" />Exportar</Button>
                     </div>
                 </div>
 
@@ -312,18 +335,87 @@ export default function QuestionViewer() {
 
             {/* Export Modal */}
             <Dialog open={showExportModal} onOpenChange={setShowExportModal}>
-                <DialogContent>
+                <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Exportar para DOCX</DialogTitle>
-                        <DialogDescription>{`Todas as ${questions.length} questões serão exportadas.`}</DialogDescription>
+                        <DialogDescription>
+                            Escolha a versão do documento e selecione as questões a exportar.
+                        </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-2">
-                        <Label htmlFor="exportName">Nome do arquivo</Label>
-                        <Input id="exportName" placeholder="Ex: questoes-5ano-portugues" value={exportFileName} onChange={(e) => setExportFileName(e.target.value)} />
+
+                    <div className="space-y-5">
+                        <div className="space-y-2">
+                            <Label htmlFor="exportName">Nome do arquivo</Label>
+                            <Input id="exportName" placeholder="Ex: questoes-5ano-portugues" value={exportFileName} onChange={(e) => setExportFileName(e.target.value)} />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Versão</Label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setExportVersion('student')}
+                                    className={`rounded-md border p-3 text-left transition-colors ${exportVersion === 'student' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:bg-muted'}`}
+                                >
+                                    <div className="flex items-center gap-2 font-medium text-sm">
+                                        <GraduationCap className="size-4" /> Aluno
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">Apenas questões e alternativas, sem gabarito.</p>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setExportVersion('teacher')}
+                                    className={`rounded-md border p-3 text-left transition-colors ${exportVersion === 'teacher' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:bg-muted'}`}
+                                >
+                                    <div className="flex items-center gap-2 font-medium text-sm">
+                                        <BookOpen className="size-4" /> Professor
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">Inclui gabarito, explicação e distratores.</p>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label>Questões ({selectedExportIds.size}/{questions.length})</Label>
+                                <button
+                                    type="button"
+                                    onClick={toggleExportAll}
+                                    className="text-xs text-primary hover:underline"
+                                >
+                                    {selectedExportIds.size === questions.length ? 'Desmarcar todas' : 'Selecionar todas'}
+                                </button>
+                            </div>
+                            <div className="max-h-60 overflow-y-auto rounded-md border border-border divide-y divide-border">
+                                {questions.map(q => (
+                                    <label key={q.id} className="flex items-start gap-3 p-3 cursor-pointer hover:bg-muted/60">
+                                        <Checkbox
+                                            checked={selectedExportIds.has(q.id)}
+                                            onCheckedChange={() => toggleExportId(q.id)}
+                                            className="mt-0.5"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                <span className="font-mono">#{q.question_number}</span>
+                                                {q.id_skill && <Badge variant="outline" className="text-[10px]">{q.id_skill}</Badge>}
+                                                {q.validated && <span className="text-emerald-600">• validada</span>}
+                                            </div>
+                                            <p className="mt-0.5 text-sm line-clamp-2">
+                                                {q.question_statement || q.title || 'Sem enunciado'}
+                                            </p>
+                                        </div>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
                     </div>
+
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowExportModal(false)}>Cancelar</Button>
-                        <Button onClick={handleExport}><Download className="size-4" />Exportar</Button>
+                        <Button onClick={handleExport} disabled={selectedExportIds.size === 0 || isExporting}>
+                            <Download className="size-4" />
+                            Exportar {selectedExportIds.size > 0 ? `(${selectedExportIds.size})` : ''}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -208,9 +208,16 @@ export const agentApi = {
 export const docApi = {
     /**
      * Gera documento DOCX com as questões
+     * @param {Array} questions - Lista de questões a exportar
+     * @param {string} fileName - Nome do arquivo
+     * @param {'student'|'teacher'} [version='teacher'] - 'student' omite gabarito/explicação/distratores
      */
-    async generateDocx(questions, fileName) {
-        return request(`/doc/generate-docx?file_name=${encodeURIComponent(fileName)}`, {
+    async generateDocx(questions, fileName, version = 'teacher') {
+        const params = new URLSearchParams({
+            file_name: fileName,
+            version,
+        });
+        return request(`/doc/generate-docx?${params.toString()}`, {
             method: 'POST',
             body: JSON.stringify(questions),
         });
