@@ -71,9 +71,14 @@ export default function GroupView() {
             : q))
     }
 
-    const handleToggleValidation = async (questionId, validated) => {
-        await questionsApi.toggleValidation(questionId, validated)
-        setQuestions(prev => prev.map(q => q.id === questionId ? { ...q, validated } : q))
+    const handleToggleValidation = async (question) => {
+        const newValidated = !question.validated
+        try {
+            await questionsApi.toggleValidation(question.id, newValidated)
+            setQuestions(prev => prev.map(q => q.id === question.id ? { ...q, validated: newValidated } : q))
+        } catch (err) {
+            setError('Erro ao atualizar validação: ' + err.message)
+        }
     }
 
     const formatDate = (iso) => {
