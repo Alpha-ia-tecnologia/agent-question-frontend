@@ -1,18 +1,21 @@
 import { Button } from '@/components/ui/button'
 import {
     Pencil, Save, X, Image as ImageIcon, RefreshCw, Wrench, CheckCircle2, Circle, Loader2,
+    FileEdit,
 } from 'lucide-react'
 
 export default function QuestionActions({
     isEditing,
     hasImage,
     isGeneratingImage,
+    isRegeneratingQuestion,
     isValidated,
     onStartEditing,
     onSaveEdits,
     onCancelEdits,
     onGenerateImage,
     onRegenerateImage,
+    onRegenerateQuestion,
     onToggleValidation,
 }) {
     if (isEditing) {
@@ -45,6 +48,19 @@ export default function QuestionActions({
                         </Button>
                     )}
                 </>
+            )}
+
+            {onRegenerateQuestion && (
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={onRegenerateQuestion}
+                    disabled={isRegeneratingQuestion}
+                    title="Regenerar questão com orientações do revisor"
+                >
+                    {isRegeneratingQuestion ? <Loader2 className="size-3.5 animate-spin" /> : <FileEdit className="size-3.5" />}
+                    {isRegeneratingQuestion ? 'Regenerando…' : 'Regenerar Questão'}
+                </Button>
             )}
 
             {onToggleValidation && (

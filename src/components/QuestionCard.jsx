@@ -17,9 +17,11 @@ export default function QuestionCard({
     question,
     onGenerateImage,
     onRegenerateImage,
+    onRegenerateQuestion,
     onUpdateQuestion,
     onToggleValidation,
     isGeneratingImage,
+    isRegeneratingQuestion,
 }) {
     const [isExpanded, setIsExpanded] = useState(false)
     const [observation, setObservation] = useState(question.observation || '')
@@ -189,12 +191,14 @@ export default function QuestionCard({
                         isEditing={isEditing}
                         hasImage={hasImage}
                         isGeneratingImage={isGeneratingImage}
+                        isRegeneratingQuestion={isRegeneratingQuestion}
                         isValidated={question.validated}
                         onStartEditing={startEditing}
                         onSaveEdits={handleSaveEdits}
                         onCancelEdits={handleCancelEdits}
                         onGenerateImage={handleGenerateImage}
                         onRegenerateImage={onRegenerateImage ? () => onRegenerateImage(question) : null}
+                        onRegenerateQuestion={onRegenerateQuestion ? () => onRegenerateQuestion(question) : null}
                         onToggleValidation={onToggleValidation ? () => onToggleValidation(question) : null}
                     />
                 </>

@@ -199,6 +199,22 @@ export const agentApi = {
             }),
         });
     },
+
+    /**
+     * Regenera uma questão inteira com base em orientações do revisor.
+     * Preserva habilidade, nível e ano escolar.
+     */
+    async regenerateQuestion(question, customInstructions, questionId = null) {
+        return request('/agent/regenerate-question', {
+            method: 'POST',
+            body: JSON.stringify({
+                question,
+                question_id: questionId,
+                custom_instructions: customInstructions,
+                count_alternatives: Array.isArray(question?.alternatives) ? question.alternatives.length : null,
+            }),
+        });
+    },
 };
 
 // ==========================================

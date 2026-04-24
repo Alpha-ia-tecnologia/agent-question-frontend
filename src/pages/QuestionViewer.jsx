@@ -42,6 +42,10 @@ export default function QuestionViewer() {
     const [regenerateInstructions, setRegenerateInstructions] = useState('')
     const [questionToRegenerate, setQuestionToRegenerate] = useState(null)
     const [syncDistractors, setSyncDistractors] = useState(true)
+    const [showRegenerateQuestionModal, setShowRegenerateQuestionModal] = useState(false)
+    const [regenerateQuestionInstructions, setRegenerateQuestionInstructions] = useState('')
+    const [questionBeingRegenerated, setQuestionBeingRegenerated] = useState(null)
+    const [regeneratingQuestionId, setRegeneratingQuestionId] = useState(null)
     const [isLoading, setIsLoading] = useState(true)
 
     const fetchQuestions = useCallback(async () => {
@@ -174,6 +178,40 @@ export default function QuestionViewer() {
     const handleUpdateQuestion = (questionId, updatedFields) => {
         setQuestions(prev => prev.map(q => q.id === questionId ? { ...q, ...updatedFields } : q))
         setSuccess('Questão atualizada!')
+    }
+
+    const openRegenerateQuestionModal = (question) => {
+        setQuestionBeingRegenerated(question)
+        setRegenerateQuestionInstructions('')
+        setShowRegenerateQuestionModal(true)
+    }
+
+    const handleRegenerateQuestion = async () => {
+        if (!questionBeingRegenerated || !regenerateQuestionInstructions.trim()) {
+            setError('Descreva o que deve ser corrigido na questão.')
+            return
+        }
+        const target = questionBeingRegenerated
+        setRegeneratingQuestionId(target.id)
+        setError('')
+        setShowRegenerateQuestionModal(false)
+        try {
+            const response = await agentApi.regenerateQuestion(target, regenerateQuestionInstructions, target.id)
+            const patch = response?.question || {}
+            setQuestions(prev => prev.map(q => {
+                if (q.id !== target.id) return q
+                const updated = { ...q, ...patch }
+                if (Array.isArray(patch.alternatives)) updated.alternatives = patch.alternatives
+                return updated
+            }))
+            setSuccess('Questão regenerada!')
+            setQuestionBeingRegenerated(null)
+            setRegenerateQuestionInstructions('')
+        } catch (err) {
+            setError('Erro ao regenerar questão: ' + err.message)
+        } finally {
+            setRegeneratingQuestionId(null)
+        }
     }
 
     const openExportModal = () => {
@@ -314,9 +352,11 @@ export default function QuestionViewer() {
                                                                         question={q}
                                                                         onGenerateImage={handleGenerateImage}
                                                                         onRegenerateImage={openRegenerateModal}
+                                                                        onRegenerateQuestion={openRegenerateQuestionModal}
                                                                         onUpdateQuestion={handleUpdateQuestion}
                                                                         onToggleValidation={handleToggleValidation}
                                                                         isGeneratingImage={isGeneratingImage}
+                                                                        isRegeneratingQuestion={regeneratingQuestionId === q.id}
                                                                     />
                                                                 ))}
                                                             </div>
@@ -442,6 +482,45 @@ export default function QuestionViewer() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowRegenerateModal(false)}>Cancelar</Button>
                         <Button onClick={handleRegenerateImage}>Regenerar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Regenerate Question Modal */}
+            <Dialog open={showRegenerateQuestionModal} onOpenChange={setShowRegenerateQuestionModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Regenerar Questão</DialogTitle>
+                        <DialogDescription>
+                            Descreva os pontos que precisam ser observados e corrigidos.
+                            A habilidade, nível de proficiência e ano escolar serão preservados.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        {questionBeingRegenerated && (
+                            <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                                <div className="font-mono">#{questionBeingRegenerated.question_number}</div>
+                                <div className="line-clamp-2 mt-1 text-foreground">
+                                    {questionBeingRegenerated.question_statement || questionBeingRegenerated.title}
+                                </div>
+                            </div>
+                        )}
+                        <div className="space-y-2">
+                            <Label htmlFor="regQuestionInstructions">Orientações para correção</Label>
+                            <Textarea
+                                id="regQuestionInstructions"
+                                rows={5}
+                                placeholder="Ex: os distratores estão muito parecidos com o gabarito; reescreva-os com erros conceituais mais variados e deixe o enunciado mais direto."
+                                value={regenerateQuestionInstructions}
+                                onChange={(e) => setRegenerateQuestionInstructions(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowRegenerateQuestionModal(false)}>Cancelar</Button>
+                        <Button onClick={handleRegenerateQuestion} disabled={!regenerateQuestionInstructions.trim()}>
+                            Regenerar Questão
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

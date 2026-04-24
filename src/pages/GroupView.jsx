@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
@@ -33,6 +34,10 @@ export default function GroupView() {
     const [exportVersion, setExportVersion] = useState('teacher')
     const [selectedExportIds, setSelectedExportIds] = useState(() => new Set())
     const [isExporting, setIsExporting] = useState(false)
+    const [showRegenerateQuestionModal, setShowRegenerateQuestionModal] = useState(false)
+    const [regenerateQuestionInstructions, setRegenerateQuestionInstructions] = useState('')
+    const [questionBeingRegenerated, setQuestionBeingRegenerated] = useState(null)
+    const [regeneratingQuestionId, setRegeneratingQuestionId] = useState(null)
 
     const load = useCallback(async () => {
         setIsLoading(true)
@@ -78,6 +83,41 @@ export default function GroupView() {
             setQuestions(prev => prev.map(q => q.id === question.id ? { ...q, validated: newValidated } : q))
         } catch (err) {
             setError('Erro ao atualizar validação: ' + err.message)
+        }
+    }
+
+    const openRegenerateQuestionModal = (question) => {
+        setQuestionBeingRegenerated(question)
+        setRegenerateQuestionInstructions('')
+        setShowRegenerateQuestionModal(true)
+    }
+
+    const handleRegenerateQuestion = async () => {
+        if (!questionBeingRegenerated || !regenerateQuestionInstructions.trim()) {
+            setError('Descreva o que deve ser corrigido na questão.')
+            return
+        }
+        const target = questionBeingRegenerated
+        setRegeneratingQuestionId(target.id)
+        setError('')
+        setShowRegenerateQuestionModal(false)
+        try {
+            const response = await agentApi.regenerateQuestion(target, regenerateQuestionInstructions, target.id)
+            const patch = response?.question || {}
+            setQuestions(prev => prev.map(q => {
+                if (q.id !== target.id) return q
+                const updated = { ...q, ...patch }
+                if (Array.isArray(patch.alternatives)) updated.alternatives = patch.alternatives
+                return updated
+            }))
+            setSuccess('Questão regenerada!')
+            setTimeout(() => setSuccess(''), 3000)
+            setQuestionBeingRegenerated(null)
+            setRegenerateQuestionInstructions('')
+        } catch (err) {
+            setError('Erro ao regenerar questão: ' + err.message)
+        } finally {
+            setRegeneratingQuestionId(null)
         }
     }
 
@@ -197,9 +237,11 @@ export default function GroupView() {
                                 key={q.id}
                                 question={q}
                                 onGenerateImage={handleGenerateImage}
+                                onRegenerateQuestion={openRegenerateQuestionModal}
                                 onUpdateQuestion={handleUpdateQuestion}
                                 onToggleValidation={handleToggleValidation}
                                 isGeneratingImage={generatingImageId === q.id}
+                                isRegeneratingQuestion={regeneratingQuestionId === q.id}
                             />
                         ))}
                     </div>
@@ -288,6 +330,45 @@ export default function GroupView() {
                         <Button onClick={handleExport} disabled={selectedExportIds.size === 0 || isExporting}>
                             <Download className="size-4" />
                             Exportar {selectedExportIds.size > 0 ? `(${selectedExportIds.size})` : ''}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Regenerate Question Modal */}
+            <Dialog open={showRegenerateQuestionModal} onOpenChange={setShowRegenerateQuestionModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Regenerar Questão</DialogTitle>
+                        <DialogDescription>
+                            Descreva os pontos que precisam ser observados e corrigidos.
+                            A habilidade, nível de proficiência e ano escolar serão preservados.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        {questionBeingRegenerated && (
+                            <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                                <div className="font-mono">#{questionBeingRegenerated.question_number}</div>
+                                <div className="line-clamp-2 mt-1 text-foreground">
+                                    {questionBeingRegenerated.question_statement || questionBeingRegenerated.title}
+                                </div>
+                            </div>
+                        )}
+                        <div className="space-y-2">
+                            <Label htmlFor="regQuestionInstructions">Orientações para correção</Label>
+                            <Textarea
+                                id="regQuestionInstructions"
+                                rows={5}
+                                placeholder="Ex: os distratores estão muito parecidos com o gabarito; reescreva-os com erros conceituais mais variados e deixe o enunciado mais direto."
+                                value={regenerateQuestionInstructions}
+                                onChange={(e) => setRegenerateQuestionInstructions(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowRegenerateQuestionModal(false)}>Cancelar</Button>
+                        <Button onClick={handleRegenerateQuestion} disabled={!regenerateQuestionInstructions.trim()}>
+                            Regenerar Questão
                         </Button>
                     </DialogFooter>
                 </DialogContent>
