@@ -100,7 +100,11 @@ export default function QuestionCard({
                             )}
                         </div>
 
-                        <QuestionImage imageSrc={imageSrc} />
+                        <QuestionImage
+                            imageSrc={imageSrc}
+                            onRegenerate={onGenerateImage ? handleGenerateImage : null}
+                            isRegenerating={isGeneratingImage}
+                        />
 
                         {question.needs_manual_image && !hasImage && (
                             <Alert variant="default" className="border-amber-500/30 bg-amber-500/5">
