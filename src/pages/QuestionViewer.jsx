@@ -46,6 +46,9 @@ export default function QuestionViewer() {
     const [regenerateQuestionInstructions, setRegenerateQuestionInstructions] = useState('')
     const [questionBeingRegenerated, setQuestionBeingRegenerated] = useState(null)
     const [regeneratingQuestionId, setRegeneratingQuestionId] = useState(null)
+    const [showGenerateImageModal, setShowGenerateImageModal] = useState(false)
+    const [generateImageInstructions, setGenerateImageInstructions] = useState('')
+    const [questionForImage, setQuestionForImage] = useState(null)
     const [isLoading, setIsLoading] = useState(true)
 
     const fetchQuestions = useCallback(async () => {
@@ -116,16 +119,29 @@ export default function QuestionViewer() {
         } catch (err) { setError('Erro ao atualizar validação: ' + err.message) }
     }
 
-    const handleGenerateImage = async (question) => {
+    const handleGenerateImage = (question) => {
+        setQuestionForImage(question)
+        setGenerateImageInstructions('')
+        setShowGenerateImageModal(true)
+    }
+
+    const submitImageGeneration = async () => {
+        const target = questionForImage
+        if (!target) return
+        const instructions = generateImageInstructions.trim()
+        setShowGenerateImageModal(false)
         setIsGeneratingImage(true); setError('')
         try {
-            const response = await agentApi.generateImage(question)
-            setQuestions(prev => prev.map(q => q.id === question.id
+            const response = await agentApi.generateImage(target, instructions)
+            setQuestions(prev => prev.map(q => q.id === target.id
                 ? { ...q, image_base64: response.image_base64, image_url: response.image_url || q.image_url }
                 : q))
-            setSuccess('Imagem gerada e salva com sucesso!')
-            return response.image_base64
-        } catch (err) { setError('Erro ao gerar imagem: ' + err.message); return null }
+            setSuccess(instructions
+                ? 'Imagem gerada com suas orientações! Elas alimentarão futuras gerações.'
+                : 'Imagem gerada e salva com sucesso!')
+            setQuestionForImage(null)
+            setGenerateImageInstructions('')
+        } catch (err) { setError('Erro ao gerar imagem: ' + err.message) }
         finally { setIsGeneratingImage(false) }
     }
 
@@ -482,6 +498,37 @@ export default function QuestionViewer() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setShowRegenerateModal(false)}>Cancelar</Button>
                         <Button onClick={handleRegenerateImage}>Regenerar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Generate Image Modal */}
+            <Dialog open={showGenerateImageModal} onOpenChange={setShowGenerateImageModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Gerar Imagem</DialogTitle>
+                        <DialogDescription>
+                            Você pode (opcionalmente) dar orientações para o agente gerar uma imagem mais precisa.
+                            Suas orientações são salvas e reutilizadas em gerações futuras de questões com mesmo
+                            tema/série/componente.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                        <Label htmlFor="genImageInstructions">Orientações (opcional)</Label>
+                        <Textarea
+                            id="genImageInstructions"
+                            rows={4}
+                            placeholder="Ex.: usar paleta sóbria; mostrar exatamente 3 elementos; evitar texto na imagem; estilo livro didático."
+                            value={generateImageInstructions}
+                            onChange={(e) => setGenerateImageInstructions(e.target.value)}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowGenerateImageModal(false)}>Cancelar</Button>
+                        <Button onClick={submitImageGeneration}>
+                            <Sparkles className="size-4" />
+                            {generateImageInstructions.trim() ? 'Gerar com orientações' : 'Gerar imagem'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

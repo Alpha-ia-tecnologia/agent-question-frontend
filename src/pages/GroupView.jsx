@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import {
     ArrowLeft, AlertCircle, FileText, Image as ImageIcon, Calendar, Layers,
-    Download, GraduationCap, BookOpen, CheckCircle2, X,
+    Download, GraduationCap, BookOpen, CheckCircle2, X, Sparkles,
 } from 'lucide-react'
 
 export default function GroupView() {
@@ -38,6 +38,9 @@ export default function GroupView() {
     const [regenerateQuestionInstructions, setRegenerateQuestionInstructions] = useState('')
     const [questionBeingRegenerated, setQuestionBeingRegenerated] = useState(null)
     const [regeneratingQuestionId, setRegeneratingQuestionId] = useState(null)
+    const [showGenerateImageModal, setShowGenerateImageModal] = useState(false)
+    const [generateImageInstructions, setGenerateImageInstructions] = useState('')
+    const [questionForImage, setQuestionForImage] = useState(null)
 
     const load = useCallback(async () => {
         setIsLoading(true)
@@ -55,13 +58,30 @@ export default function GroupView() {
 
     useEffect(() => { load() }, [load])
 
-    const handleGenerateImage = async (question) => {
-        setGeneratingImageId(question.id)
+    const handleGenerateImage = (question) => {
+        setQuestionForImage(question)
+        setGenerateImageInstructions('')
+        setShowGenerateImageModal(true)
+    }
+
+    const submitImageGeneration = async () => {
+        const target = questionForImage
+        if (!target) return
+        const instructions = generateImageInstructions.trim()
+        setShowGenerateImageModal(false)
+        setGeneratingImageId(target.id)
+        setError('')
         try {
-            const result = await agentApi.generateImage(question)
-            setQuestions(prev => prev.map(q => q.id === question.id
+            const result = await agentApi.generateImage(target, instructions)
+            setQuestions(prev => prev.map(q => q.id === target.id
                 ? { ...q, image_base64: result.image_base64, image_url: result.image_url }
                 : q))
+            setSuccess(instructions
+                ? 'Imagem gerada com suas orientações! Elas alimentarão futuras gerações.'
+                : 'Imagem gerada com sucesso!')
+            setTimeout(() => setSuccess(''), 3000)
+            setQuestionForImage(null)
+            setGenerateImageInstructions('')
         } catch (err) {
             setError('Erro ao gerar imagem: ' + err.message)
         } finally {
@@ -330,6 +350,37 @@ export default function GroupView() {
                         <Button onClick={handleExport} disabled={selectedExportIds.size === 0 || isExporting}>
                             <Download className="size-4" />
                             Exportar {selectedExportIds.size > 0 ? `(${selectedExportIds.size})` : ''}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Generate Image Modal */}
+            <Dialog open={showGenerateImageModal} onOpenChange={setShowGenerateImageModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Gerar Imagem</DialogTitle>
+                        <DialogDescription>
+                            Você pode (opcionalmente) dar orientações para o agente gerar uma imagem mais precisa.
+                            Suas orientações são salvas e reutilizadas em gerações futuras de questões com mesmo
+                            tema/série/componente.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                        <Label htmlFor="genImageInstructions">Orientações (opcional)</Label>
+                        <Textarea
+                            id="genImageInstructions"
+                            rows={4}
+                            placeholder="Ex.: usar paleta sóbria; mostrar exatamente 3 elementos; evitar texto na imagem; estilo livro didático."
+                            value={generateImageInstructions}
+                            onChange={(e) => setGenerateImageInstructions(e.target.value)}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowGenerateImageModal(false)}>Cancelar</Button>
+                        <Button onClick={submitImageGeneration}>
+                            <Sparkles className="size-4" />
+                            {generateImageInstructions.trim() ? 'Gerar com orientações' : 'Gerar imagem'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

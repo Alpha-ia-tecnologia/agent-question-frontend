@@ -175,12 +175,19 @@ export const agentApi = {
 
 
     /**
-     * Gera imagem para uma questão
+     * Gera imagem para uma questão.
+     * @param {Object} question - dados da questão
+     * @param {string} [customInstructions] - orientações opcionais para o agente.
+     *   Quando fornecidas, são injetadas no prompt e persistidas na base de
+     *   conhecimento (`image_generation_guidelines`) para alimentar gerações futuras.
      */
-    async generateImage(question) {
+    async generateImage(question, customInstructions = '') {
+        const payload = customInstructions && customInstructions.trim()
+            ? { ...question, custom_instructions: customInstructions.trim() }
+            : question
         return request('/agent/ask-image', {
             method: 'POST',
-            body: JSON.stringify(question),
+            body: JSON.stringify(payload),
         });
     },
 

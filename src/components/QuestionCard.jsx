@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuestionImage } from '../hooks/useQuestionImage'
 import { useQuestionEdit } from '../hooks/useQuestionEdit'
 import QuestionHeader from './question/QuestionHeader'
@@ -6,11 +6,12 @@ import QuestionImage from './question/QuestionImage'
 import AlternativesList from './question/AlternativesList'
 import QuestionActions from './question/QuestionActions'
 import { questionsApi } from '../api/api'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertTriangle, ExternalLink, Lightbulb, NotebookPen, Loader2, Check, Sparkles } from 'lucide-react'
+import { AlertTriangle, ExternalLink, Lightbulb, NotebookPen, Loader2, Check, Sparkles, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export default function QuestionCard({
@@ -25,8 +26,8 @@ export default function QuestionCard({
 }) {
     const [isExpanded, setIsExpanded] = useState(false)
     const [observation, setObservation] = useState(question.observation || '')
+    const [savedObservation, setSavedObservation] = useState(question.observation || '')
     const [saveStatus, setSaveStatus] = useState('')
-    const debounceRef = useRef(null)
 
     const { imageSrc, hasImage } = useQuestionImage(question)
     const {
@@ -34,24 +35,30 @@ export default function QuestionCard({
         handleAlternativeChange, handleDistractorChange, updateField,
     } = useQuestionEdit(question, onUpdateQuestion)
 
-    useEffect(() => { setObservation(question.observation || '') }, [question.observation])
+    useEffect(() => {
+        setObservation(question.observation || '')
+        setSavedObservation(question.observation || '')
+    }, [question.observation])
 
     const handleObservationChange = (e) => {
-        const value = e.target.value
-        setObservation(value)
-        setSaveStatus('')
-        if (debounceRef.current) clearTimeout(debounceRef.current)
-        debounceRef.current = setTimeout(async () => {
-            try {
-                setSaveStatus('saving')
-                await questionsApi.updateObservation(question.id, value || null)
-                setSaveStatus('saved')
-                setTimeout(() => setSaveStatus(''), 2000)
-            } catch (err) {
-                console.error('Erro ao salvar observação:', err)
-                setSaveStatus('')
-            }
-        }, 800)
+        setObservation(e.target.value)
+        if (saveStatus === 'saved') setSaveStatus('')
+    }
+
+    const isObservationDirty = observation !== savedObservation
+    const handleSaveObservation = async () => {
+        if (!isObservationDirty || saveStatus === 'saving') return
+        try {
+            setSaveStatus('saving')
+            const value = observation.trim()
+            await questionsApi.updateObservation(question.id, value || null)
+            setSavedObservation(observation)
+            setSaveStatus('saved')
+            setTimeout(() => setSaveStatus(''), 2500)
+        } catch (err) {
+            console.error('Erro ao salvar observação:', err)
+            setSaveStatus('error')
+        }
     }
 
     const handleGenerateImage = async () => {
@@ -170,7 +177,12 @@ export default function QuestionCard({
                                 )}
                                 {saveStatus === 'saved' && (
                                     <span className="flex items-center gap-1 text-[10px] text-emerald-600">
-                                        <Check className="size-3" /> salvo
+                                        <Check className="size-3" /> salvo na base de conhecimento
+                                    </span>
+                                )}
+                                {saveStatus === 'error' && (
+                                    <span className="flex items-center gap-1 text-[10px] text-destructive">
+                                        falha ao salvar
                                     </span>
                                 )}
                             </div>
@@ -181,13 +193,25 @@ export default function QuestionCard({
                                 placeholder="Ex.: 'Faltou citar o tema no texto-base', 'Distratores muito óbvios'…"
                                 className="text-sm"
                             />
-                            <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-muted-foreground leading-snug">
-                                <Sparkles className="size-3 shrink-0 mt-0.5 text-primary/70" />
-                                <span>
-                                    Esta observação será usada no <span className="font-medium text-foreground/80">aprendizado do modelo</span>:
-                                    em próximas gerações da mesma habilidade, série e componente, o agente e o revisor recebem este feedback como lição aprendida para evitar o mesmo problema.
-                                </span>
-                            </p>
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                                <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground leading-snug">
+                                    <Sparkles className="size-3 shrink-0 mt-0.5 text-primary/70" />
+                                    <span>
+                                        Ao salvar, esta observação alimenta a <span className="font-medium text-foreground/80">base de conhecimento do agente</span>:
+                                        em próximas gerações com a mesma habilidade, série e componente, o gerador e o revisor a recebem como lição aprendida.
+                                    </span>
+                                </p>
+                                <Button
+                                    size="sm"
+                                    variant={isObservationDirty ? 'default' : 'outline'}
+                                    onClick={handleSaveObservation}
+                                    disabled={!isObservationDirty || saveStatus === 'saving'}
+                                    className="shrink-0"
+                                >
+                                    {saveStatus === 'saving' ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+                                    Salvar
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
