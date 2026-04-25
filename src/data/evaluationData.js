@@ -1914,7 +1914,40 @@ export const evaluationData = {
             { level: 'N9' }, { level: 'N10' },
         ],
         // Habilidades SEAMA 2023 — Padrões de Desempenho (LP/MT, 5EF/9EF)
+        // Para o 2º ano EF (matriz SAEB/SEAMA do 2º ano) não há subdivisão por
+        // níveis de proficiência; nesse caso o componente armazena diretamente
+        // um array de habilidades (em vez de um mapa N1/N2/...).
         skillsByGradeComponentLevel: {
+            '2º ano EF': {
+                LP: [
+                    { code: 'D002_P', description: 'Reconhecer as letras do alfabeto.' },
+                    { code: 'D003_P', description: 'Reconhecer as diferentes formas de grafar uma mesma letra ou palavra.' },
+                    { code: 'D005_P', description: 'Identificar a unidade palavra em frases.' },
+                    { code: 'D006_P', description: 'Identificar rimas.' },
+                    { code: 'D008_P', description: 'Identificar sílabas de uma palavra.' },
+                    { code: 'D009_P', description: 'Ler palavras formadas por sílabas canônicas.' },
+                    { code: 'D010_P', description: 'Ler palavras formadas por sílabas não canônicas.' },
+                    { code: 'D013_P', description: 'Reconhecer o local de inserção de determinada palavra numa sequência em ordem alfabética.' },
+                    { code: 'D014_P', description: 'Identificar variações de sons de grafemas.' },
+                    { code: 'D015_P', description: 'Ler frases.' },
+                    { code: 'D016_P', description: 'Identificar a finalidade de textos de diferentes gêneros.' },
+                    { code: 'D017_P', description: 'Reconhecer o gênero de um texto.' },
+                ],
+                MT: [
+                    { code: 'D001_M', description: 'Identificar a localização ou a movimentação de pessoas, ou objetos em uma representação plana do espaço.' },
+                    { code: 'D002_M', description: 'Reconhecer características do sistema de numeração decimal.' },
+                    { code: 'D003_M', description: 'Identificar composições ou decomposições de números naturais.' },
+                    { code: 'D004_M', description: 'Executar adição ou subtração com números naturais.' },
+                    { code: 'D005_M', description: 'Utilizar números naturais, envolvendo diferentes significados da adição ou da subtração, na resolução de problemas.' },
+                    { code: 'D006_M', description: 'Classificar objetos segundo atributos de cor, forma ou medida.' },
+                    { code: 'D007_M', description: 'Comparar quantidades de objetos de duas coleções.' },
+                    { code: 'D008_M', description: 'Executar a contagem de um grupo de objetos/pessoas/animais.' },
+                    { code: 'D009_M', description: 'Identificar informações apresentadas em tabelas ou gráficos.' },
+                    { code: 'D010_M', description: 'Identificar representações de figuras bidimensionais.' },
+                    { code: 'D011_M', description: 'Identificar representações de figuras tridimensionais.' },
+                    { code: 'D012_M', description: 'Reconhecer valores convencionados de moedas ou de cédulas do Sistema Monetário Brasileiro, em situações do cotidiano.' },
+                ],
+            },
             '5º ano EF': {
                 LP: {
                     N1: [
@@ -2563,12 +2596,25 @@ export function getSeamaAvailableComponents(grade) {
 
 export function getSeamaAvailableLevels(grade, component) {
     const root = evaluationData.SEAMA?.skillsByGradeComponentLevel || {};
-    return Object.keys(root[grade]?.[component] || {});
+    const node = root[grade]?.[component];
+    if (!node || Array.isArray(node)) return [];
+    return Object.keys(node);
 }
 
 export function getSeamaSkills(grade, component, level) {
     const root = evaluationData.SEAMA?.skillsByGradeComponentLevel || {};
-    return root[grade]?.[component]?.[level] || [];
+    const node = root[grade]?.[component];
+    if (Array.isArray(node)) return node;
+    return node?.[level] || [];
+}
+
+// True quando o componente da série SEAMA é organizado por níveis de proficiência.
+// Para séries cuja matriz não define níveis (ex.: 2º ano EF), o componente
+// guarda diretamente um array de habilidades e este helper retorna false.
+export function seamaHasLevels(grade, component) {
+    const root = evaluationData.SEAMA?.skillsByGradeComponentLevel || {};
+    const node = root[grade]?.[component];
+    return !!node && !Array.isArray(node);
 }
 
 /**

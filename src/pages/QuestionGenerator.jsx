@@ -12,6 +12,7 @@ import {
     getSeamaAvailableComponents,
     getSeamaAvailableLevels,
     getSeamaSkills,
+    seamaHasLevels,
 } from '../data/evaluationData'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -197,10 +198,17 @@ export default function QuestionGenerator() {
 
     if (isLoading) return <GenerationProgress events={progressEvents} error={error} />
 
-    // BNCC não exige nível de proficiência; SAEB/SEAMA exigem.
-    const primaryReady = form.modelEvaluationType === 'BNCC'
-        ? Boolean(form.modelEvaluationType && form.skill)
-        : Boolean(form.modelEvaluationType && form.skill && form.proficiencyLevel)
+    // BNCC não exige nível de proficiência; SAEB sempre exige; SEAMA exige
+    // apenas quando a série/componente possui níveis cadastrados (séries como
+    // 2º ano EF não têm níveis, então basta a habilidade).
+    const seamaNeedsLevel = form.modelEvaluationType === 'SEAMA'
+        && seamaHasLevels(form.grade, form.curriculumComponent)
+    const primaryReady = (() => {
+        if (!form.modelEvaluationType || !form.skill) return false
+        if (form.modelEvaluationType === 'BNCC') return true
+        if (form.modelEvaluationType === 'SEAMA') return seamaNeedsLevel ? !!form.proficiencyLevel : true
+        return !!form.proficiencyLevel
+    })()
     const interdisciplinary = contextMode === 'skills' && extraSkills.filter(s => s.curriculumComponent && s.skill).length > 0
 
     return (
@@ -532,6 +540,7 @@ export default function QuestionGenerator() {
 function SeamaSkillPicker({ form, setField }) {
     const grades = getSeamaAvailableGrades()
     const components = getSeamaAvailableComponents(form.grade)
+    const hasLevels = seamaHasLevels(form.grade, form.curriculumComponent)
     const levels = getSeamaAvailableLevels(form.grade, form.curriculumComponent)
     const skills = getSeamaSkills(form.grade, form.curriculumComponent, form.proficiencyLevel)
 
@@ -554,6 +563,11 @@ function SeamaSkillPicker({ form, setField }) {
     const empty = grades.length === 0
     const componentName = (id) => curriculumComponents.find(c => c.id === id)?.name || id
 
+    // Habilita o select de habilidades:
+    // - quando o componente tem níveis: depois de selecionar o nível
+    // - quando o componente NÃO tem níveis (ex.: 2º ano EF): assim que o componente é escolhido
+    const skillsEnabled = form.curriculumComponent && (!hasLevels || !!form.proficiencyLevel)
+
     return (
         <div className="space-y-4">
             {empty && (
@@ -563,7 +577,7 @@ function SeamaSkillPicker({ form, setField }) {
                     <code className="text-foreground"> evaluationData.js</code>.
                 </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={cn('grid grid-cols-1 gap-4', hasLevels ? 'md:grid-cols-3' : 'md:grid-cols-2')}>
                 <div className="space-y-2">
                     <Label>Série</Label>
                     <Select value={form.grade} onValueChange={handleGrade} disabled={empty}>
@@ -582,21 +596,31 @@ function SeamaSkillPicker({ form, setField }) {
                         </SelectContent>
                     </Select>
                 </div>
-                <div className="space-y-2">
-                    <Label className="flex items-center gap-1.5"><GraduationCap className="size-3.5" />Nível de Proficiência</Label>
-                    <Select value={form.proficiencyLevel} onValueChange={handleLevel} disabled={!form.curriculumComponent}>
-                        <SelectTrigger><SelectValue placeholder={form.curriculumComponent ? 'Selecione…' : 'Componente primeiro'} /></SelectTrigger>
-                        <SelectContent>
-                            {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-                        </SelectContent>
-                    </Select>
-                </div>
+                {hasLevels && (
+                    <div className="space-y-2">
+                        <Label className="flex items-center gap-1.5"><GraduationCap className="size-3.5" />Nível de Proficiência</Label>
+                        <Select value={form.proficiencyLevel} onValueChange={handleLevel} disabled={!form.curriculumComponent}>
+                            <SelectTrigger><SelectValue placeholder={form.curriculumComponent ? 'Selecione…' : 'Componente primeiro'} /></SelectTrigger>
+                            <SelectContent>
+                                {levels.map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
             </div>
             <div className="space-y-2">
-                <Label>Habilidades relacionadas ao nível {form.proficiencyLevel || '—'}</Label>
-                <Select value={form.skill} onValueChange={(v) => setField('skill', v)} disabled={!form.proficiencyLevel}>
+                <Label>
+                    {hasLevels
+                        ? `Habilidades relacionadas ao nível ${form.proficiencyLevel || '—'}`
+                        : 'Habilidades disponíveis'}
+                </Label>
+                <Select value={form.skill} onValueChange={(v) => setField('skill', v)} disabled={!skillsEnabled}>
                     <SelectTrigger>
-                        <SelectValue placeholder={form.proficiencyLevel ? 'Selecione a habilidade…' : 'Selecione o nível primeiro'} />
+                        <SelectValue placeholder={
+                            skillsEnabled
+                                ? 'Selecione a habilidade…'
+                                : (hasLevels ? 'Selecione o nível primeiro' : 'Selecione o componente primeiro')
+                        } />
                     </SelectTrigger>
                     <SelectContent className="max-w-[calc(100vw-4rem)]">
                         {skills.map(s => (
@@ -607,11 +631,18 @@ function SeamaSkillPicker({ form, setField }) {
                         ))}
                     </SelectContent>
                 </Select>
-                {form.proficiencyLevel && skills.length === 0 && (
-                    <p className="text-[11px] text-amber-600">Sem habilidades cadastradas para este nível. Forneça o documento SEAMA correspondente.</p>
+                {skillsEnabled && skills.length === 0 && (
+                    <p className="text-[11px] text-amber-600">
+                        {hasLevels
+                            ? 'Sem habilidades cadastradas para este nível. Forneça o documento SEAMA correspondente.'
+                            : 'Sem habilidades cadastradas para este componente.'}
+                    </p>
                 )}
-                {form.proficiencyLevel && skills.length > 0 && (
-                    <p className="text-[11px] text-muted-foreground">{skills.length} habilidade(s) disponível(is) no nível {form.proficiencyLevel}</p>
+                {skillsEnabled && skills.length > 0 && (
+                    <p className="text-[11px] text-muted-foreground">
+                        {skills.length} habilidade(s) disponível(is)
+                        {hasLevels ? ` no nível ${form.proficiencyLevel}` : ''}
+                    </p>
                 )}
             </div>
         </div>
